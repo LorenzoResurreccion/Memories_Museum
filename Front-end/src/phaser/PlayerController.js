@@ -55,6 +55,22 @@ export default class PlayerController {
      */
     this.maxX = Infinity;
 
+    /**
+     * Top vertical clamp bound for the player's feet (world Y). The sprite uses a
+     * feet origin (0.5, 1), so `sprite.y` IS the feet position. This is the world Y
+     * of the walkable floor's top edge — the player's feet may not step above it
+     * (onto the back wall). Defaults to -Infinity (no-op until GameScene provides it).
+     * @type {number}
+     */
+    this.minFeetY = -Infinity;
+
+    /**
+     * Bottom vertical clamp bound for the player's feet (world Y) — the walkable
+     * floor's bottom edge. Defaults to +Infinity (no-op until provided).
+     * @type {number}
+     */
+    this.maxFeetY = Infinity;
+
     // Set up key press/release tracking via scene input
     this._setupKeyTracking();
 
@@ -211,6 +227,11 @@ export default class PlayerController {
     // with the directional velocity zeroed at the respective edge. A no-op while
     // bounds are the defaults (-Infinity / +Infinity).
     this._applyHorizontalClamp();
+
+    // Two-sided vertical clamp keeping the player's feet on the walkable floor band
+    // (feet may not step above the floor top onto the back wall, nor below the floor
+    // bottom). A no-op while bounds are the defaults.
+    this._applyVerticalClamp();
   }
 
   /**
@@ -225,6 +246,20 @@ export default class PlayerController {
   setBounds(minX, maxX) {
     if (typeof minX === 'number') this.minX = minX;
     if (typeof maxX === 'number') this.maxX = maxX;
+  }
+
+  /**
+   * Set the vertical clamp bounds for the player's feet (world Y). The sprite's feet
+   * origin means `sprite.y` is the feet position, so these are compared directly.
+   * `minFeetY` is the walkable floor's top edge; `maxFeetY` is its bottom edge. Pass
+   * undefined for a bound to leave it unchanged.
+   *
+   * @param {number} [minFeetY] - Floor top edge (feet may not go above it).
+   * @param {number} [maxFeetY] - Floor bottom edge (feet may not go below it).
+   */
+  setVerticalBounds(minFeetY, maxFeetY) {
+    if (typeof minFeetY === 'number') this.minFeetY = minFeetY;
+    if (typeof maxFeetY === 'number') this.maxFeetY = maxFeetY;
   }
 
   /**
@@ -257,6 +292,39 @@ export default class PlayerController {
     } else if (typeof this.sprite.setVelocity === 'function') {
       const y = this.sprite.body?.velocity?.y ?? 0;
       this.sprite.setVelocity(0, y);
+    }
+  }
+
+  /**
+   * Clamp the sprite's feet Y into [minFeetY, maxFeetY] and zero the velocity
+   * component pushing past the hit edge. Robust against mocks that lack a full
+   * physics body. Symmetric to {@link _applyHorizontalClamp}.
+   */
+  _applyVerticalClamp() {
+    if (this.sprite.y < this.minFeetY) {
+      this.sprite.y = this.minFeetY;
+      // Moving up into the floor's top edge — stop upward velocity.
+      if ((this.sprite.body?.velocity?.y ?? 0) < 0) {
+        this._zeroVelocityY();
+      }
+    } else if (this.sprite.y > this.maxFeetY) {
+      this.sprite.y = this.maxFeetY;
+      // Moving down into the floor's bottom edge — stop downward velocity.
+      if ((this.sprite.body?.velocity?.y ?? 0) > 0) {
+        this._zeroVelocityY();
+      }
+    }
+  }
+
+  /**
+   * Zero only the Y velocity component, using whichever sprite API is available.
+   */
+  _zeroVelocityY() {
+    if (typeof this.sprite.setVelocityY === 'function') {
+      this.sprite.setVelocityY(0);
+    } else if (typeof this.sprite.setVelocity === 'function') {
+      const x = this.sprite.body?.velocity?.x ?? 0;
+      this.sprite.setVelocity(x, 0);
     }
   }
 

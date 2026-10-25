@@ -74,14 +74,6 @@ function createMockSprite() {
 }
 
 /**
- * Arbitrary: a non-empty subset of directions (1–4 directions held simultaneously).
- */
-const heldDirectionsArb = fc.uniqueArray(
-  fc.constantFrom(...DIRECTIONS),
-  { minLength: 1, maxLength: 4 }
-);
-
-/**
  * Arbitrary: a permutation representing the order keys were pressed.
  * The array contains the directions in the order they were pressed
  * (last element = most recently pressed).

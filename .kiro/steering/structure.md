@@ -30,13 +30,21 @@ Front-end/
     │   ├── DialogueBox.jsx    # paged sentimental text overlay
     │   ├── ImageViewer.jsx    # high-res photo overlay
     │   └── __tests__/         # component + integration + property tests
+    ├── data/
+    │   ├── memories.js        # MEMORIES manifest (static content) + future-memory text
+    │   └── __tests__/
+    ├── __tests__/             # cross-cutting tests (e.g. map conversion)
     └── phaser/
-        ├── config.js          # Phaser game config
-        ├── GameScene.js       # map loading, player spawn, layers, Y-sort, camera, input
-        ├── PlayerController.js # movement + animations, freeze/unfreeze
-        ├── HotspotManager.js  # loads memory_hotspot zones, emits hotspot-activated
-        ├── EventBus.js        # pub/sub singleton bridging Phaser <-> React
-        └── __tests__/         # scene/manager/eventbus property + example tests
+        ├── config.js          # Phaser game config (canvas size, scale/centering)
+        ├── GameScene.js       # map loading, player spawn, layers, Y-sort, camera, input, segment wiring
+        ├── PlayerController.js # movement + animations, freeze/unfreeze, two-sided + vertical clamp
+        ├── CollisionBuilder.js # static collision bodies from per-tile objectgroup shapes
+        ├── SegmentManager.js   # bounded procedural hallway segment generation/recycling
+        ├── InteractionManager.js # E-key edge detection, zone registry, emits hotspot-activated
+        ├── PromptLabel.js      # floating [E] prompt pinned above the player
+        ├── memoryResolve.js    # zone ordering + memory-index resolution against MEMORIES
+        ├── EventBus.js         # pub/sub singleton bridging Phaser <-> React
+        └── __tests__/          # scene/manager/eventbus property + example tests
 ```
 
 ### Where things live
@@ -48,7 +56,7 @@ Front-end/
 
 ## Memory content (no backend)
 
-There is no API or separate data store. Memory content lives in the Tiled map as `memory_hotspot` objects (`id`, `text`, `imageUrl`), read at runtime by `HotspotManager`. Heavy media (photos/audio) is referenced by URL (e.g. an external bucket/CDN) rather than bundled or served by an app.
+There is no API or separate data store. Memory content lives in a static ES module, `src/data/memories.js` — the `MEMORIES` manifest, a plain object keyed by contiguous `Memory_Index` (`0 .. N-1`), each entry carrying `text` (dialogue pages) and `imageUrl` (or `null`). The Tiled maps only hold interaction-zone *positions* (object-layer points); the segment build step resolves each zone to a manifest entry via `memoryResolve.js`, or to the "future memory" placeholder when the zone index is `>= N`. `N` (the authored count) drives the hallway's right bound. Heavy media (photos/audio) is referenced by URL (e.g. an external bucket/CDN) rather than bundled or served by an app.
 
 ## Tile_Creator/ (asset generation)
 
@@ -66,5 +74,5 @@ Compiles a JSON palette + tile layout into a 16px-grid tileset sheet (default 8 
 - **Tests** live in `__tests__/` folders next to the code they cover, named `*.test.{js,jsx}`; property-based variants use `*.property.test.*`.
 - **File naming:** React components in PascalCase `.jsx` with a matching `.css`; Phaser modules in PascalCase `.js`; the shared `EventBus` and `config` are lowercase.
 - **Module style:** ES modules throughout the frontend. React = functional components + hooks. Phaser scenes/managers = ES classes with JSDoc.
-- **Keep the boundary clean:** game logic in `phaser/`, presentation in `components/`, coordination in `App.jsx`, communication over `EventBus`.
-- **Note on naming drift:** code currently references `madison` map/tileset assets while `public/assets/` holds placeholders. When wiring real assets, keep map tileset `name` in the Tiled JSON matching the image key loaded in `GameScene.preload()`.
+- **Keep the boundary clean:** game logic in `phaser/`, presentation in `components/`, static content in `data/`, coordination in `App.jsx`, communication over `EventBus`.
+- **Asset naming:** maps are `museum_start` / `museum_hallway`; tilesets are `museum_tileset` (firstgid 1) / `museum_decor` (firstgid 41). Keep each tileset `name` in the Tiled JSON matching the image key loaded in `GameScene.preload()`.

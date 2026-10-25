@@ -27,6 +27,7 @@ vi.mock('../../phaser/config.js', () => ({
 
 import App from '../../App.jsx';
 import EventBus from '../../phaser/EventBus.js';
+import { FUTURE_MEMORY_TEXT, FUTURE_MEMORY_OVERLAY } from '../../data/memories.js';
 
 describe('Integration: Phaser–React communication loop', () => {
   /** **Validates: Requirements 6.4, 7.1, 8.4, 9.4** */
@@ -61,7 +62,7 @@ describe('Integration: Phaser–React communication loop', () => {
       expect(dialogueBox.textContent).toContain('Hello, this is a memory.');
     });
 
-    it('dismisses DialogueBox on Enter key and emits dialogue-dismissed', () => {
+    it('dismisses a single-page DialogueBox on Space and emits dialogue-dismissed; Enter does nothing', () => {
       const dismissSpy = vi.fn();
       EventBus.on('dialogue-dismissed', dismissSpy);
 
@@ -84,9 +85,16 @@ describe('Integration: Phaser–React communication loop', () => {
         vi.advanceTimersByTime(300);
       });
 
-      // Press Enter to dismiss
+      // Enter no longer advances or dismisses (Req 9.10) — nothing happens.
       act(() => {
         fireEvent.keyDown(window, { key: 'Enter' });
+      });
+      expect(dismissSpy).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' })).not.toBeNull();
+
+      // Space on the last (only) page dismisses (Req 9.9).
+      act(() => {
+        fireEvent.keyDown(window, { key: ' ' });
       });
 
       // Verify dialogue-dismissed was emitted
@@ -121,21 +129,27 @@ describe('Integration: Phaser–React communication loop', () => {
         vi.advanceTimersByTime(300);
       });
 
-      // Press Enter → advance to page 2
+      // Enter is inert now — it must NOT advance (Req 9.10).
       act(() => {
         fireEvent.keyDown(window, { key: 'Enter' });
       });
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' }).textContent).toContain('Page one.');
+
+      // Space → advance to page 2 (Req 9.8)
+      act(() => {
+        fireEvent.keyDown(window, { key: ' ' });
+      });
       expect(screen.queryByRole('dialog', { name: 'Dialogue' }).textContent).toContain('Page two.');
 
-      // Press Space → advance to page 3
+      // Space → advance to page 3
       act(() => {
         fireEvent.keyDown(window, { key: ' ' });
       });
       expect(screen.queryByRole('dialog', { name: 'Dialogue' }).textContent).toContain('Page three.');
 
-      // Press Enter → dismiss (final page)
+      // Space on the final page → dismiss (Req 9.9)
       act(() => {
-        fireEvent.keyDown(window, { key: 'Enter' });
+        fireEvent.keyDown(window, { key: ' ' });
       });
 
       expect(dismissSpy).toHaveBeenCalledTimes(1);
@@ -158,12 +172,12 @@ describe('Integration: Phaser–React communication loop', () => {
 
       expect(screen.queryByRole('dialog', { name: 'Dialogue' })).not.toBeNull();
 
-      // Advance past debounce and dismiss
+      // Advance past debounce and dismiss with Space (single page → Space dismisses)
       act(() => {
         vi.advanceTimersByTime(300);
       });
       act(() => {
-        fireEvent.keyDown(window, { key: 'Enter' });
+        fireEvent.keyDown(window, { key: ' ' });
       });
 
       // Overlay should be gone
@@ -239,7 +253,7 @@ describe('Integration: Phaser–React communication loop', () => {
       EventBus.off('image-dismissed', imageDismissSpy);
     });
 
-    it('Enter key dismisses both dialogue and image simultaneously when both are visible', () => {
+    it('Space dismisses both dialogue and image simultaneously when both are visible; Enter does nothing', () => {
       const dialogueDismissSpy = vi.fn();
       const imageDismissSpy = vi.fn();
       EventBus.on('dialogue-dismissed', dialogueDismissSpy);
@@ -259,15 +273,26 @@ describe('Integration: Phaser–React communication loop', () => {
       expect(screen.queryByRole('dialog', { name: 'Dialogue' })).not.toBeNull();
       expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).not.toBeNull();
 
-      // Advance past debounce and press Enter — both share the keydown listener
+      // Advance past debounce.
       act(() => {
         vi.advanceTimersByTime(300);
       });
+
+      // Enter is inert now — neither overlay dismisses (Req 9.10, 9.11).
       act(() => {
         fireEvent.keyDown(window, { key: 'Enter' });
       });
+      expect(dialogueDismissSpy).not.toHaveBeenCalled();
+      expect(imageDismissSpy).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' })).not.toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).not.toBeNull();
 
-      // Both are dismissed (single-page dialogue + image both respond to Enter)
+      // Space dismisses both (single-page dialogue + image both respond to Space —
+      // Req 9.9). Both share the window keydown listener.
+      act(() => {
+        fireEvent.keyDown(window, { key: ' ' });
+      });
+
       expect(dialogueDismissSpy).toHaveBeenCalledTimes(1);
       expect(imageDismissSpy).toHaveBeenCalledTimes(1);
       expect(screen.queryByRole('dialog', { name: 'Dialogue' })).toBeNull();
@@ -379,12 +404,12 @@ describe('Integration: Phaser–React communication loop', () => {
         fireEvent.click(closeButton);
       });
 
-      // Now dismiss dialogue via keypress
+      // Now dismiss dialogue via keypress (single page → Space dismisses)
       act(() => {
         vi.advanceTimersByTime(300);
       });
       act(() => {
-        fireEvent.keyDown(window, { key: 'Enter' });
+        fireEvent.keyDown(window, { key: ' ' });
       });
 
       // Now overlay is fully cleared — new activation should work
@@ -399,6 +424,155 @@ describe('Integration: Phaser–React communication loop', () => {
       const dialogueBox = screen.queryByRole('dialog', { name: 'Dialogue' });
       expect(dialogueBox).not.toBeNull();
       expect(dialogueBox.textContent).toContain('New memory after unlock.');
+    });
+  });
+
+  // Task 18.1 — freeze gating: an overlay-opening activation is what causes the
+  // GameScene to freeze the player + lock interaction, and a full dismissal unfreezes.
+  // GameScene itself is mocked out here, so a spy that mirrors its EventBus
+  // subscriptions stands in for it to validate the end-to-end gating contract.
+  // **Validates: Requirements 9.6, 9.7**
+  describe('Freeze gating (payload non-emptiness drives freeze/unfreeze)', () => {
+    /**
+     * Attach a stand-in for the GameScene freeze/lock subscriptions. Returns a mutable
+     * `state` object plus the listeners so the caller can detach them afterward.
+     */
+    function attachGameSceneStandIn() {
+      const state = { overlayOpen: false, frozen: false, locked: false };
+      const onActivate = () => {
+        state.overlayOpen = true;
+        state.frozen = true;
+        state.locked = true;
+      };
+      const onDialogueDismiss = () => {
+        state.overlayOpen = false;
+        state.frozen = false;
+        state.locked = false;
+      };
+      const onImageDismiss = () => {
+        state.overlayOpen = false;
+        state.frozen = false;
+        state.locked = false;
+      };
+      EventBus.on('hotspot-activated', onActivate);
+      EventBus.on('dialogue-dismissed', onDialogueDismiss);
+      EventBus.on('image-dismissed', onImageDismiss);
+      return {
+        state,
+        detach() {
+          EventBus.off('hotspot-activated', onActivate);
+          EventBus.off('dialogue-dismissed', onDialogueDismiss);
+          EventBus.off('image-dismissed', onImageDismiss);
+        }
+      };
+    }
+
+    it('a text+image payload opens the overlay and freezes/locks the game', () => {
+      const { state, detach } = attachGameSceneStandIn();
+      render(<App />);
+
+      act(() => {
+        EventBus.emit('hotspot-activated', {
+          id: 'memory-0',
+          text: ['An authored memory.'],
+          imageUrl: 'https://example.com/photo.png',
+        });
+      });
+
+      // Overlay open → frozen + locked.
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' })).not.toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).not.toBeNull();
+      expect(state.frozen).toBe(true);
+      expect(state.locked).toBe(true);
+
+      detach();
+    });
+
+    it('the future-memory payload is non-empty, so it opens the dialogue and freezes/locks', () => {
+      const { state, detach } = attachGameSceneStandIn();
+      render(<App />);
+
+      // Future-memory overlay: one text page, null image (verbatim constant).
+      act(() => {
+        EventBus.emit('hotspot-activated', {
+          id: 'memory-999',
+          text: FUTURE_MEMORY_OVERLAY.text,
+          imageUrl: FUTURE_MEMORY_OVERLAY.imageUrl,
+        });
+      });
+
+      const dialogueBox = screen.queryByRole('dialog', { name: 'Dialogue' });
+      expect(dialogueBox).not.toBeNull();
+      expect(dialogueBox.textContent).toContain(FUTURE_MEMORY_TEXT);
+      // No image overlay for the future payload (imageUrl is null).
+      expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).toBeNull();
+      // Non-empty payload still freezes + locks.
+      expect(state.frozen).toBe(true);
+      expect(state.locked).toBe(true);
+
+      detach();
+    });
+
+    it('a genuinely empty payload (no text, no image) opens no overlay and emits no dismiss', () => {
+      // App is the overlay coordinator: its guard (Req 7.5) shows nothing for a payload
+      // with neither text nor image, so no overlay opens and the player is never frozen
+      // (freeze is driven by an overlay opening). In the real system such a payload is
+      // also filtered upstream by InteractionManager, so no `hotspot-activated` is even
+      // emitted — but App must still be inert if one arrives.
+      const dialogueDismissSpy = vi.fn();
+      const imageDismissSpy = vi.fn();
+      EventBus.on('dialogue-dismissed', dialogueDismissSpy);
+      EventBus.on('image-dismissed', imageDismissSpy);
+
+      render(<App />);
+
+      act(() => {
+        EventBus.emit('hotspot-activated', {
+          id: 'memory-empty',
+          text: [],
+          imageUrl: null,
+        });
+      });
+
+      // No overlay opens — the user-visible freeze trigger never fires.
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).toBeNull();
+      // No dismiss events emitted (nothing to dismiss).
+      expect(dialogueDismissSpy).not.toHaveBeenCalled();
+      expect(imageDismissSpy).not.toHaveBeenCalled();
+
+      EventBus.off('dialogue-dismissed', dialogueDismissSpy);
+      EventBus.off('image-dismissed', imageDismissSpy);
+    });
+
+    it('dismiss events unfreeze/unlock the game after an overlay closes', () => {
+      const { state, detach } = attachGameSceneStandIn();
+      render(<App />);
+
+      // Open with text only.
+      act(() => {
+        EventBus.emit('hotspot-activated', {
+          id: 'memory-1',
+          text: ['Freeze me.'],
+          imageUrl: null,
+        });
+      });
+      expect(state.frozen).toBe(true);
+      expect(state.locked).toBe(true);
+
+      // Dismiss with Space (single page) → dialogue-dismissed → unfreeze + unlock.
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      act(() => {
+        fireEvent.keyDown(window, { key: ' ' });
+      });
+
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' })).toBeNull();
+      expect(state.frozen).toBe(false);
+      expect(state.locked).toBe(false);
+
+      detach();
     });
   });
 });

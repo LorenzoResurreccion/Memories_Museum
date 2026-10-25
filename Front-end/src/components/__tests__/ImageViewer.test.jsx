@@ -117,7 +117,22 @@ describe('ImageViewer', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onDismiss when Enter is pressed', () => {
+  it('calls onDismiss when Esc is pressed', () => {
+    const onDismiss = vi.fn();
+    render(
+      <ImageViewer
+        imageUrl="/assets/photos/placeholder.png"
+        visible={true}
+        onDismiss={onDismiss}
+      />
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing when Enter is pressed (Enter removed)', () => {
     const onDismiss = vi.fn();
     render(
       <ImageViewer
@@ -129,10 +144,10 @@ describe('ImageViewer', () => {
 
     fireEvent.keyDown(window, { key: 'Enter' });
 
-    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 
-  it('does not call onDismiss for non-interaction keys', () => {
+  it('does not call onDismiss for non-interaction keys (not Space/Esc)', () => {
     const onDismiss = vi.fn();
     render(
       <ImageViewer
@@ -143,7 +158,7 @@ describe('ImageViewer', () => {
     );
 
     fireEvent.keyDown(window, { key: 'a' });
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'Enter' });
     fireEvent.keyDown(window, { key: 'ArrowDown' });
 
     expect(onDismiss).not.toHaveBeenCalled();

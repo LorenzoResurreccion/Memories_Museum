@@ -17,7 +17,7 @@
  * GID decode note: `buildForLayer` masks the raw Tiled GID locally
  * (`frame = gid & 0x1FFFFFFF`) rather than importing `gidDecode` from
  * `GameScene.js`. This keeps the module free of GameScene's heavy import graph
- * (PlayerController / HotspotManager / EventBus / Phaser) so it imports cleanly in
+ * (PlayerController / InteractionManager / EventBus / Phaser) so it imports cleanly in
  * tests under the existing `vi.mock('phaser', …)` pattern. The equivalent
  * `gidDecode` helper exists in `GameScene.js` if a caller prefers it.
  *

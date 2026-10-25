@@ -2,14 +2,15 @@
 
 A bespoke, interactive 2.5D retro side-scrolling video game built as a personalized anniversary gift. The player explores a warm-cream minimalist art gallery, controlling a custom 16-bit character sprite across a hardwood floor depth plane. Walking up to a framed pixel canvas and pressing an interaction key triggers a React UI overlay that shows a high-resolution couple photo and streams sentimental dialogue letters.
 
-The game is fully self-contained and static — all memory content is authored directly in the Tiled map, so there is no backend server to run or deploy.
+The game is fully self-contained and static — all memory content is authored directly in the app as a static module (`src/data/memories.js`), so there is no backend server to run or deploy.
 
 ---
 
 ## 🎨 Core Gameplay Features
 
-*   **2.5D Walkable Gallery Depth:** Vertical Y-sorting within a side-scrolling layout. The player moves left/right and up/down across the floor, dynamically sorting behind or in front of benches, props, and building pieces.
-*   **Memory Hotspots:** Invisible interaction zones sit in front of canvases. Standing on one and pressing Space or Enter opens its dialogue and/or photo.
+*   **2.5D Walkable Gallery Depth:** Vertical Y-sorting within a side-scrolling layout. The player moves left/right and up/down across the floor, dynamically sorting behind or in front of benches, props, and decor.
+*   **Bounded Infinite Hallway:** The gallery is procedurally stitched from repeating segments as the player walks, bounded on the right by the number of authored memories. Segments generate and recycle on the fly to keep the runtime light.
+*   **Interaction Zones:** Invisible zones span the full width of each framed canvas. Standing in front of one shows a floating `[E]` prompt; pressing `E` opens its dialogue and/or photo.
 *   **Phaser-to-React State Bridge:** A lightweight decoupled runtime. Player interaction inside the WebGL game canvas dispatches custom events through a shared EventBus to trigger smooth HTML/React UI overlays.
 *   **Light Runtime Footprint:** Pixel assets ship with the game; heavy media (high-res photos, audio) is intended to be served from external/CDN storage rather than bundled.
 
@@ -18,7 +19,7 @@ The game is fully self-contained and static — all memory content is authored d
 ## 🛠️ Key Technologies
 
 ### Game Engine
-*   **Phaser 4:** Drives the 2D rendering pipeline, 4-direction character physics, tilemap collision layers, camera, and interactable hotspot zones.
+*   **Phaser 4:** Drives the 2D rendering pipeline, 4-direction character physics, per-tile static collision, camera, bounded procedural segment generation, and interaction zones.
 
 ### UI Layer
 *   **React 19:** Renders layout components layered around and on top of the game canvas for accessible text delivery and photo rendering.
@@ -35,15 +36,14 @@ The game is fully self-contained and static — all memory content is authored d
 
 ## 🧩 Memory Content Model
 
-Memories are authored as Tiled objects of type `memory_hotspot` in the map's object layer. Each hotspot carries:
+Memories are authored in a static manifest, `Front-end/src/data/memories.js` (`MEMORIES`), keyed by contiguous index `0 .. N-1`. Each entry carries:
 
 | Property   | Required | Description                                        |
 | ---------- | -------- | -------------------------------------------------- |
-| `id`       | yes      | Stable identifier for the memory                   |
-| `text`     | yes      | JSON array of dialogue pages (the letter content)  |
-| `imageUrl` | no       | Link to the high-res photo for the image viewer    |
+| `text`     | yes      | Array of dialogue pages (the letter content)       |
+| `imageUrl` | no       | Link to the high-res photo (`null` if none)        |
 
-Hotspots missing `id` or `text` are skipped. A hotspot with neither text nor image shows nothing and does not freeze the player. The player start is a `player_spawn` object in the `spawn` object layer.
+The gallery is a bounded "infinite hallway": the authored count `N` sets how far it extends (`finalSegmentIndex = N ≥ 1 ? floor((N-1)/6) : 0`). The Tiled maps hold only interaction-zone *positions* (object-layer points); each zone is resolved at runtime to a manifest entry, or to a single "future memory" placeholder page for zones past the authored memories. The player start is a `player_spawn` object in the spawn object layer, with an in-bounds floor fallback.
 
 ---
 
@@ -59,7 +59,8 @@ Memories_Museum/
 │   │       └── sprites/       # 4-way character walking sheets
 │   └── src/
 │       ├── components/        # React components (GameCanvas, DialogueBox, ImageViewer)
-│       ├── phaser/            # Phaser scene, controllers, and the EventBus bridge
+│       ├── data/             # memories.js — static MEMORIES manifest
+│       ├── phaser/            # Phaser scene, controllers, segment/interaction subsystems, EventBus bridge
 │       └── App.jsx            # Coordinates React and Phaser state
 │
 └── Tile_Creator/              # Python tool that compiles tileset PNGs from a JSON config
@@ -82,7 +83,8 @@ From `Tile_Creator/`, run `python tile_builder.py` to regenerate the tileset PNG
 ## 🏗️ Technical Architecture Workflow
 
 ```text
- [ Phaser Game Loop ] ──(player overlaps hotspot + key press)──> emit "hotspot-activated"
+ [ Phaser Game Loop ] ──(player overlaps zone + presses E)──> emit "hotspot-activated"
+   InteractionManager   (payload resolved from the MEMORIES manifest)
                                                       │
                                                       ▼ (via EventBus)
  [ React UI ] ──(reads {id, text, imageUrl} from the event payload)

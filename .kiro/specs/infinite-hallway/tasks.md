@@ -159,8 +159,8 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
       unchanged, rightward velocity zeroed.
     - _Requirements: 5.3, 5.4, 13.3_
 
-- [ ] 8. SegmentManager (generate / count / recycle / return path, bounded)
-  - [ ] 8.1 Implement `src/phaser/SegmentManager.js` arithmetic + lifecycle
+- [x] 8. SegmentManager (generate / count / recycle / return path, bounded)
+  - [x] 8.1 Implement `src/phaser/SegmentManager.js` arithmetic + lifecycle
     - `finalSegmentIndex = N >= 1 ? floor((N-1)/6) : 0` (or injected explicitly).
     - `worldOffsetForIndex(0) = startRightEdgeX`; `worldOffsetForIndex(n) = startRightEdgeX + n*928`.
     - `segmentCount` = highest generated index + 1 (0 initially); increments by exactly 1 only on a
@@ -174,37 +174,37 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
     - Delegate sprite/body/zone creation to injected `buildSegment(index, worldOffsetX)` (which uses
       `assignZoneIndices` + `resolveZonePayload`) so the manager is mock-testable.
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 5.1, 5.5, 5.6, 13.1, 13.2, 13.8_ · _Design: SegmentManager_
-  - [ ]* 8.2 Write `SegmentManager.continuity.property.test.js`
+  - [x]* 8.2 Write `SegmentManager.continuity.property.test.js`
     - **Property 2: Floor continuity** — `worldOffsetForIndex(n)` equals the prior segment's right
       edge (start-map right edge for `n=0`), zero gap/overlap, identical floor Y.
     - **Validates: Requirements 3.1, 3.5, 5.2**
-  - [ ]* 8.3 Write `SegmentManager.count.property.test.js`
+  - [x]* 8.3 Write `SegmentManager.count.property.test.js`
     - **Property 3: Segment-count monotonicity** — count non-decreasing, +1 only on a new max.
       **Validates: Requirements 4.2, 4.3**
     - **Property 4: Count = maxIndex+1** (second block) — count equals highest generated index + 1,
       0 before any generation. **Validates: Requirements 4.5, 4.6**
-  - [ ]* 8.4 Write `SegmentManager.bounded.property.test.js`
+  - [x]* 8.4 Write `SegmentManager.bounded.property.test.js`
     - **Property 5: Bounded generation** — over random `N` → `finalSegmentIndex`, no generated index
       exceeds `finalSegmentIndex` and `segmentCount <= finalSegmentIndex + 1`.
     - **Validates: Requirements 3.3, 4.7, 13.1**
-  - [ ]* 8.5 Write `SegmentManager.window.property.test.js`
+  - [x]* 8.5 Write `SegmentManager.window.property.test.js`
     - **Property 7: Loaded-window bound** — concurrently instantiated segments never exceed 3.
     - **Validates: Requirements 3.6, 3.7**
-  - [ ]* 8.6 Write `SegmentManager.returnPath.property.test.js`
+  - [x]* 8.6 Write `SegmentManager.returnPath.property.test.js`
     - **Property 8: Return-path consistency** — leftward index sequence is the reverse of the
       rightward sequence, terminating at the start map; no index `< 0`.
     - **Validates: Requirements 5.1, 5.5**
-  - [ ]* 8.7 Write `SegmentManager.bounded.test.js` example tests
+  - [x]* 8.7 Write `SegmentManager.bounded.test.js` example tests
     - Bounded generation + right clamp: with `N` memories, driving fully right generates no index
       `> finalSegmentIndex`, `segmentCount <= finalSegmentIndex + 1`.
     - `N == 0` edge case: exactly one segment (index 0), nothing to its right, all 6 zones future.
     - _Requirements: 3.3, 3.4, 4.7, 13.1, 13.2, 13.8_
 
-- [ ] 9. Checkpoint — core subsystems
+- [x] 9. Checkpoint — core subsystems
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. InteractionManager (replaces HotspotManager)
-  - [ ] 10.1 Implement `src/phaser/InteractionManager.js`
+- [x] 10. InteractionManager (replaces HotspotManager)
+  - [x] 10.1 Implement `src/phaser/InteractionManager.js`
     - Open key is `E`, edge-detected (one emit per press cycle, released ≥1 frame). `addZones` /
       `removeZones` register/release a segment's world-offset zones (each already carrying resolved
       `{zoneIndex, memoryIndex, id, payload}`). `isPlayerOverlappingZone(player)` drives the prompt.
@@ -212,58 +212,58 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
       when unlocked + E rising edge + overlapping; never on Space/Enter/Esc; no-op while locked.
       `setLocked(locked)`. EventBus-only; never touches React. Remove/replace `HotspotManager` usage.
     - _Requirements: 8.1, 8.3, 8.4, 9.1, 9.2, 9.3, 9.4, 9.5, 9.13, 9.14_ · _Design: InteractionManager_
-  - [ ]* 10.2 Write `InteractionManager.activation.property.test.js`
+  - [x]* 10.2 Write `InteractionManager.activation.property.test.js`
     - **Property 10: Single activation per press** — at most one emit per discrete E press cycle.
     - **Validates: Requirements 9.3**
-  - [ ]* 10.3 Write `InteractionManager.noZone.property.test.js`
+  - [x]* 10.3 Write `InteractionManager.noZone.property.test.js`
     - **Property 11: No activation outside zones** — no emit when overlapping no zone.
     - **Validates: Requirements 9.4**
-  - [ ]* 10.4 Write `InteractionManager.lock.property.test.js`
+  - [x]* 10.4 Write `InteractionManager.lock.property.test.js`
     - **Property 12: No re-open while locked** — no emit while locked.
     - **Validates: Requirements 9.5**
-  - [ ]* 10.5 Write `InteractionManager.spaceNoOpen.property.test.js`
+  - [x]* 10.5 Write `InteractionManager.spaceNoOpen.property.test.js`
     - **Property 13: Advance never opens** — Space while no overlay open never emits.
     - **Validates: Requirements 9.2**
-  - [ ]* 10.6 Write InteractionManager example tests
+  - [x]* 10.6 Write InteractionManager example tests
     - E over a zone emits once; Space/Enter/Esc never emit; locked manager ignores E.
     - _Requirements: 9.1, 9.2, 9.5_
 
-- [ ] 11. PromptLabel floating [E] label
-  - [ ] 11.1 Implement `src/phaser/PromptLabel.js`
+- [x] 11. PromptLabel floating [E] label
+  - [x] 11.1 Implement `src/phaser/PromptLabel.js`
     - `[E]` text/container; `setVisible(visible)` at fixed depth `>= 10000` (overhead);
       `follow(player)` repositions at a fixed offset above the player's top each frame. Visibility
       rule (applied in `GameScene.update`): visible iff `isPlayerOverlappingZone && !overlayOpen`.
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_ · _Design: PromptLabel_
-  - [ ]* 11.2 Write `PromptLabel.visibility.property.test.js`
+  - [x]* 11.2 Write `PromptLabel.visibility.property.test.js`
     - **Property 9: Prompt visibility iff zone overlap and no overlay** — visible iff
       `overlaps && !overlayOpen`. **Validates: Requirements 8.1, 8.3, 8.4**
-  - [ ]* 11.3 Write PromptLabel example tests
+  - [x]* 11.3 Write PromptLabel example tests
     - Overlap + no overlay ⇒ visible; overlay open ⇒ hidden; no overlap ⇒ hidden; `follow` keeps the
       fixed offset as the player moves.
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 12. React overlay key-semantics updates
-  - [ ] 12.1 Update `src/components/DialogueBox.jsx`
+- [x] 12. React overlay key-semantics updates
+  - [x] 12.1 Update `src/components/DialogueBox.jsx`
     - Space advances when not on the last page and dismisses (via `onDismiss`) on the last page; Esc
       dismisses at any page; Enter no longer advances or dismisses; keep the 300ms debounce and
       paged-text rendering.
     - _Requirements: 9.8, 9.9, 9.10, 9.11_ · _Design: DialogueBox.jsx_
-  - [ ]* 12.2 Extend `DialogueBox.test.jsx`
+  - [x]* 12.2 Extend `DialogueBox.test.jsx`
     - Space advances mid-pages; Space on last page calls `onDismiss`; Esc dismisses at any page;
       Enter does nothing; 300ms debounce honored.
     - _Requirements: 9.8, 9.9, 9.10, 9.11_
-  - [ ] 12.3 Update `src/components/ImageViewer.jsx`
+  - [x] 12.3 Update `src/components/ImageViewer.jsx`
     - Space dismisses; Esc dismisses; Enter removed; keep the close button and `onError` fallback.
     - _Requirements: 9.9, 9.11_ · _Design: ImageViewer.jsx_
-  - [ ]* 12.4 Extend `ImageViewer.test.jsx`
+  - [x]* 12.4 Extend `ImageViewer.test.jsx`
     - Space and Esc dismiss; Enter does nothing; close button works; broken image shows fallback.
     - _Requirements: 9.9, 9.11_
 
-- [ ] 13. Checkpoint — managers and overlays
+- [x] 13. Checkpoint — managers and overlays
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 14. GameScene asset loading rewrite
-  - [ ] 14.1 Rewrite `GameScene.preload()` / tileset association
+- [x] 14. GameScene asset loading rewrite
+  - [x] 14.1 Rewrite `GameScene.preload()` / tileset association
     - Load `assets/maps/museum_start.json` and `assets/maps/museum_hallway.json` via
       `tilemapTiledJSON`; load `museum_tileset` and `museum_decor` images with keys equal to the
       tileset names; `addTilesetImage('museum_tileset', …)` firstgid 1 and
@@ -271,27 +271,27 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
       player spritesheet load + 10s timeout and the `loaderror` → `_loadError` path, extended to
       name the missing tileset (`"Error: Missing tileset: museum_decor"`). Build nothing on error.
     - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.7, 11.1, 11.2, 11.3, 11.4_ · _Design: GameScene.preload/create_
-  - [ ]* 14.2 Extend `GameScene.test.js` for loading + graceful failure
+  - [x] 14.2 Extend `GameScene.test.js` for loading + graceful failure
     - `preload` registers the four real assets and no `madison`; map/tileset `loaderror` renders the
       error and builds nothing; `addTilesetImage` returning null yields a named missing-tileset error.
     - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.7, 11.1, 11.2, 11.3, 11.4_
 
-- [ ] 15. GameScene layer build: Y-sort Layer 2 with GID flips
-  - [ ] 15.1 Update `GameScene._buildSortableLayer()` (and floor/back-wall build)
+- [x] 15. GameScene layer build: Y-sort Layer 2 with GID flips
+  - [x] 15.1 Update `GameScene._buildSortableLayer()` (and floor/back-wall build)
     - For each `Tile Layer 2` cell: decode GID (task 2.1); skip when `frame <= 0`; create feet-origin
       `(0.5, 1)` sprite from the correct tileset image key at the masked frame; apply
       `setFlipX(flipH)` / `setFlipY(flipV)`; log+ignore `flipD`; add to `Y_Sort_Group`. Build
       `Tile Layer 1` floor + back wall at fixed low depth. Re-depth every `Y_Sort_Group` member to
       its feet world Y each frame (done in `update`, task 17).
     - _Requirements: 7.1, 7.2, 7.3, 7.7_ · _Design: `_buildSortableLayer`_
-  - [ ]* 15.2 Extend Y-sort example tests in `GameScene.test.js`
+  - [x]* 15.2 Extend Y-sort example tests in `GameScene.test.js`
     - Exactly one feet-origin sprite per non-empty (flag-masked) cell, none for `-1/0`; H-flip cells
       (`2147483673`→id 25, `2147483684`→id 36) yield `flipX === true`; diagonal cell ignored;
       after a depth pass every member `depth === y` and floor depth `< min(member depth)`.
     - _Requirements: 7.1, 7.2, 7.3, 7.7_
 
-- [ ] 16. GameScene create(): spawn, camera, subsystem wiring, event subscriptions
-  - [ ] 16.1 Spawn + subsystem instantiation in `create()`
+- [x] 16. GameScene create(): spawn, camera, subsystem wiring, event subscriptions
+  - [x] 16.1 Spawn + subsystem instantiation in `create()`
     - If `_loadError`, display error and build nothing. Instantiate `CollisionBuilder`,
       `SegmentManager`, `InteractionManager`, `PromptLabel` (inject `buildSegment`/`releaseSegment`
       using `assignZoneIndices` + `resolveZonePayload` + the manifest). Spawn player from
@@ -299,14 +299,14 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
       `PlayerController` `minX` (start-map floor left edge) and `maxX` (final segment floor right
       edge once that segment exists).
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 5.3, 13.3_ · _Design: GameScene.create, PlayerController_
-  - [ ] 16.2 Camera setup + dismiss/activate event subscriptions
+  - [x] 16.2 Camera setup + dismiss/activate event subscriptions
     - Camera zoom `2`, follow player, `roundPixels`; left bound at start-map left edge; right bound
       grows with generated segments but is **capped and fixed** at the final segment's right edge.
       Subscribe `hotspot-activated` (freeze player + lock InteractionManager), and
       `dialogue-dismissed` / `image-dismissed` (unfreeze + unlock within one frame); track
       `overlayOpen`. Drop `collisionLayer` / `setCollisionByExclusion` entirely.
     - _Requirements: 6.6, 9.6, 9.7, 9.12, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 13.4_ · _Design: GameScene.create_
-  - [ ]* 16.3 Extend `GameScene.test.js` + `GameScene.camera.property.test.js`
+  - [x]* 16.3 Extend `GameScene.test.js` + `GameScene.camera.property.test.js`
     - Spawn at `player_spawn` else left-of-everything fallback within start bounds.
     - Camera `zoom === 2`, `roundPixels` true, left bound at start-map left edge, right bound extends
       on generation but capped/fixed at the final segment right edge, unchanged on failure.
@@ -314,28 +314,28 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
       — visible left edge never `< start-map left edge`. **Validates: Requirements 10.3**
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 10.1, 10.3, 10.4, 10.5, 10.6, 13.4_
 
-- [ ] 17. GameScene update() loop wiring
-  - [ ] 17.1 Implement the per-frame `update()` sequence
+- [x] 17. GameScene update() loop wiring
+  - [x] 17.1 Implement the per-frame `update()` sequence
     - `playerController.update()` → `segmentManager.update(player.x)` → re-depth every `Y_Sort_Group`
       member to its feet Y → `promptLabel.follow(player)` + visibility rule
       (`isPlayerOverlappingZone && !overlayOpen`) → `interactionManager.checkInteraction(player)` →
       extend camera right bound on new segment (capped at final segment right edge). Respect
       `overlayOpen` for the prompt + interaction-lock gates.
     - _Requirements: 7.3, 8.1, 8.2, 8.3, 8.4, 9.3, 9.5, 10.4, 13.4_ · _Design: GameScene.update_
-  - [ ]* 17.2 Extend `GameScene.test.js` for the update loop
+  - [x]* 17.2 Extend `GameScene.test.js` for the update loop
     - Depth pass sets `depth === y` for all members each frame; prompt follows + toggles on
       overlap/overlay; interaction checked each frame; camera right bound capped at final segment.
     - _Requirements: 7.3, 8.1, 8.2, 8.3, 8.4, 10.4, 13.4_
 
-- [ ] 18. App integration (freeze gating)
-  - [ ]* 18.1 Extend `App.integration.test.jsx`
+- [x] 18. App integration (freeze gating)
+  - [x]* 18.1 Extend `App.integration.test.jsx`
     - A payload with text/image opens the overlay and (via the GameScene listener) freezes/locks;
       the future-memory payload (`text ["A future memory, not yet saved ❤"]`, `imageUrl null`) is
       non-empty so it also opens + freezes; a genuinely empty payload opens nothing and does not
       freeze; dismiss events unfreeze/unlock.
     - _Requirements: 9.6, 9.7_ · _Design: App.jsx_
 
-- [ ] 19. Final checkpoint — full suite, lint, and cleanup
+- [x] 19. Final checkpoint — full suite, lint, and cleanup
   - Run `npm run test` (single pass) from `Front-end/`; fix any failures.
   - Run `npm run lint` from `Front-end/`; fix any lint errors.
   - Confirm all 18 property tests exist, are named per the Property → file table, and pass.

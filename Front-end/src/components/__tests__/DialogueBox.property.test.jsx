@@ -3,11 +3,14 @@ import { render, cleanup, fireEvent } from '@testing-library/react';
 import fc from 'fast-check';
 
 // Feature: core-gameplay-mvp, Property 10: Dialogue page advancement
-// For any array of N pages (1 ≤ N ≤ 20), simulating N sequential confirm key presses
+// For any array of N pages (1 ≤ N ≤ 20), simulating N sequential SPACE key presses
 // results in exactly (N-1) calls to onAdvance and exactly 1 call to onDismiss.
 // onAdvance is called for presses 1 through N-1, onDismiss is called only on the Nth press.
+//
+// Infinite Hallway key-semantics update: the advance/dismiss key is now SPACE (Enter no
+// longer advances or dismisses — Req 9.8, 9.10). The advancement invariant is unchanged.
 
-// **Validates: Requirements 7.6**
+// **Validates: Requirements 7.6, 9.8**
 
 import DialogueBox from '../DialogueBox.jsx';
 
@@ -36,9 +39,9 @@ function simulateFullDialogue(pages) {
   // Advance past the 300ms debounce
   vi.advanceTimersByTime(301);
 
-  // Simulate N confirm presses, re-rendering with updated currentPage each time
+  // Simulate N confirm presses (Space), re-rendering with updated currentPage each time
   for (let i = 0; i < pages.length; i++) {
-    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.keyDown(window, { key: ' ' });
 
     // After each press (except the last), re-render with next page index
     if (i < pages.length - 1) {
@@ -124,7 +127,7 @@ describe('Property 10: Dialogue page advancement', () => {
           const advanceCountBefore = onAdvance.mock.calls.length;
           const dismissCountBefore = onDismiss.mock.calls.length;
 
-          fireEvent.keyDown(window, { key: 'Enter' });
+          fireEvent.keyDown(window, { key: ' ' });
 
           if (i < pages.length - 1) {
             // Not final page: onAdvance should increment

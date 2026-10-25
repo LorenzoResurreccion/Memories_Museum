@@ -9,7 +9,7 @@ It is a gift first and a software project second. It is a single-purpose, single
 ## Core experience
 
 - **Explore the gallery** — move left/right and up/down across the floor with arrow keys or WASD. The player can walk in front of or behind benches, props, and building pieces via dynamic Y-sorting.
-- **Discover memories** — invisible hotspot zones sit in front of canvases. Standing on one and pressing Space or Enter activates it.
+- **Discover memories** — invisible interaction zones sit in front of canvases, each spanning the full width of a framed canvas. Standing on one shows a floating `[E]` prompt; pressing `E` activates it.
 - **Read and reflect** — an activated hotspot opens a dialogue box (paged sentimental text) and/or an image viewer (a high-res photo). Game input freezes while an overlay is open and resumes on dismiss.
 
 ## Design priorities
@@ -21,12 +21,11 @@ It is a gift first and a software project second. It is a single-purpose, single
 
 ## Content model
 
-A memory is authored as a hotspot with:
-- `id` — stable identifier for the memory
+Memories are authored in a static manifest (`src/data/memories.js`, `MEMORIES`), keyed by contiguous index `0 .. N-1`. Each entry carries:
 - `text` — an array of dialogue pages (sentimental letter content)
-- `imageUrl` — optional link to the high-res photo
+- `imageUrl` — optional link to the high-res photo (`null` if none)
 
-Hotspots missing an `id` or `text` are skipped. A hotspot with neither text nor image shows nothing and does not freeze the player.
+The gallery is a bounded, procedurally-stitched "infinite hallway": the authored count `N` sets how far it extends. Interaction zones beyond the authored memories resolve to a single "future memory" placeholder page rather than showing nothing. A zone always opens an overlay (authored or future) and freezes the player while open.
 
 ## Audience and scope
 

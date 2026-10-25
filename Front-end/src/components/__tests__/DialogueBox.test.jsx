@@ -121,7 +121,7 @@ describe('DialogueBox', () => {
     expect(container.textContent).not.toContain('▼');
   });
 
-  it('calls onAdvance on Enter when more pages remain (after debounce)', () => {
+  it('calls onAdvance on Space when more pages remain (after debounce)', () => {
     const onAdvance = vi.fn();
     const onDismiss = vi.fn();
     render(
@@ -137,9 +137,52 @@ describe('DialogueBox', () => {
     // Advance past the 300ms debounce
     vi.advanceTimersByTime(301);
 
-    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.keyDown(window, { key: ' ' });
 
     expect(onAdvance).toHaveBeenCalledTimes(1);
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('calls onDismiss on Esc at any page (after debounce)', () => {
+    const onAdvance = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <DialogueBox
+        pages={['Page 1', 'Page 2', 'Page 3']}
+        currentPage={0}
+        visible={true}
+        onAdvance={onAdvance}
+        onDismiss={onDismiss}
+      />
+    );
+
+    vi.advanceTimersByTime(301);
+
+    // Esc dismisses even though pages remain.
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onAdvance).not.toHaveBeenCalled();
+  });
+
+  it('Enter no longer advances or dismisses', () => {
+    const onAdvance = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <DialogueBox
+        pages={['Page 1', 'Page 2']}
+        currentPage={0}
+        visible={true}
+        onAdvance={onAdvance}
+        onDismiss={onDismiss}
+      />
+    );
+
+    vi.advanceTimersByTime(301);
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(onAdvance).not.toHaveBeenCalled();
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
@@ -177,14 +220,34 @@ describe('DialogueBox', () => {
       />
     );
 
-    // Fire immediately — within debounce window
-    fireEvent.keyDown(window, { key: 'Enter' });
+    // Fire immediately — within debounce window (Space is the advance key)
+    fireEvent.keyDown(window, { key: ' ' });
 
     expect(onAdvance).not.toHaveBeenCalled();
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
-  it('ignores non-confirm keys', () => {
+  it('Esc is also debounced within the first 300ms', () => {
+    const onAdvance = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <DialogueBox
+        pages={['Page 1', 'Page 2']}
+        currentPage={0}
+        visible={true}
+        onAdvance={onAdvance}
+        onDismiss={onDismiss}
+      />
+    );
+
+    // Within debounce window — Esc ignored.
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(onAdvance).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('ignores non-interaction keys (not Space/Esc)', () => {
     const onAdvance = vi.fn();
     const onDismiss = vi.fn();
     render(
@@ -200,7 +263,7 @@ describe('DialogueBox', () => {
     vi.advanceTimersByTime(301);
 
     fireEvent.keyDown(window, { key: 'a' });
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'Enter' });
     fireEvent.keyDown(window, { key: 'ArrowDown' });
 
     expect(onAdvance).not.toHaveBeenCalled();

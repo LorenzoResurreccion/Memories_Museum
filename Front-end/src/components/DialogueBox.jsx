@@ -23,12 +23,20 @@ export default function DialogueBox({ pages, currentPage, visible, onAdvance, on
     }
   }, [visible, pages]);
 
-  // Listen for Enter/Space keydown
+  // Listen for Space/Esc keydown.
+  //
+  // Key semantics (Infinite Hallway redesign, Req 9.8–9.11):
+  //   - Space  advances to the next page when not on the last page, and dismisses
+  //            (via onDismiss) on the last page.
+  //   - Esc    dismisses immediately at any page.
+  //   - Enter  no longer advances or dismisses (Req 9.10) — it is ignored here.
   useEffect(() => {
     if (!visible || !pages || pages.length === 0) return;
 
     function handleKeyDown(e) {
-      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const isSpace = e.key === ' ';
+      const isEsc = e.key === 'Escape' || e.key === 'Esc';
+      if (!isSpace && !isEsc) return;
 
       // 300ms debounce: ignore inputs too soon after activation
       if (activatedAtRef.current && Date.now() - activatedAtRef.current < 300) {
@@ -37,6 +45,13 @@ export default function DialogueBox({ pages, currentPage, visible, onAdvance, on
 
       e.preventDefault();
 
+      if (isEsc) {
+        // Esc dismisses at any page.
+        onDismiss();
+        return;
+      }
+
+      // Space: advance unless on the last page, where it dismisses.
       if (currentPage < pages.length - 1) {
         onAdvance();
       } else {

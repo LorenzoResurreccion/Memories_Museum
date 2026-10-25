@@ -10,7 +10,6 @@ function App() {
   const [dialoguePages, setDialoguePages] = useState(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [imageUrl, setImageUrl] = useState(null);
-  const [currentHotspotId, setCurrentHotspotId] = useState(null);
 
   // Guard ref to prevent duplicate activations during state transitions
   const overlayActiveRef = useRef(false);
@@ -19,7 +18,7 @@ function App() {
     // Req 9.5: If overlay already active, safely ignore
     if (overlayActiveRef.current) return;
 
-    const { id, text, imageUrl: payloadImageUrl } = payload;
+    const { text, imageUrl: payloadImageUrl } = payload;
 
     // Req 7.5: If no text content and no image, don't show anything and don't pause
     const hasText = Array.isArray(text) && text.length > 0;
@@ -29,7 +28,6 @@ function App() {
 
     overlayActiveRef.current = true;
     setOverlayActive(true);
-    setCurrentHotspotId(id);
     setCurrentPageIndex(0);
 
     // Only set dialogue pages if there's actual text content
@@ -69,7 +67,6 @@ function App() {
     setImageUrl((currentImage) => {
       if (!currentImage) {
         setOverlayActive(false);
-        setCurrentHotspotId(null);
         overlayActiveRef.current = false;
       }
       return currentImage;
@@ -84,7 +81,6 @@ function App() {
     setDialoguePages((currentPages) => {
       if (!currentPages || currentPages.length === 0) {
         setOverlayActive(false);
-        setCurrentHotspotId(null);
         overlayActiveRef.current = false;
       }
       return currentPages;

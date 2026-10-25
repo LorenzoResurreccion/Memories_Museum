@@ -12,17 +12,30 @@ import './ImageViewer.css';
 export default function ImageViewer({ imageUrl, visible, onDismiss }) {
   const [hasError, setHasError] = useState(false);
 
-  // Reset error state when imageUrl changes or viewer becomes visible
-  useEffect(() => {
+  // Reset the error state when imageUrl changes or the viewer becomes visible, using
+  // the "adjust state during render" pattern rather than an effect. Resetting inside an
+  // effect would trigger a cascading re-render (and is flagged by react-hooks); doing it
+  // during render while a key (imageUrl + visible) changes is the idiomatic React
+  // approach for deriving/resetting state from props.
+  // See: https://react.dev/learn/you-might-not-need-an-effect
+  const [prevKey, setPrevKey] = useState(`${visible}:${imageUrl}`);
+  const key = `${visible}:${imageUrl}`;
+  if (key !== prevKey) {
+    setPrevKey(key);
     setHasError(false);
-  }, [imageUrl, visible]);
+  }
 
-  // Listen for Space/Enter to dismiss
+  // Listen for Space/Esc to dismiss.
+  //
+  // Key semantics (Infinite Hallway redesign, Req 9.9, 9.11):
+  //   - Space dismisses the single-page image overlay.
+  //   - Esc   dismisses the image overlay.
+  //   - Enter is no longer handled (removed) — it does nothing here.
   useEffect(() => {
     if (!visible) return;
 
     function handleKeyDown(e) {
-      if (e.key === 'Enter' || e.key === ' ') {
+      if (e.key === ' ' || e.key === 'Escape' || e.key === 'Esc') {
         e.preventDefault();
         onDismiss();
       }
