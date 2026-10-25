@@ -47,8 +47,8 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
 
 ## Tasks
 
-- [ ] 1. Asset conversion: committed finite Tiled JSON + schema validation
-  - [ ] 1.1 Produce and commit the converted maps **[manual]**
+- [x] 1. Asset conversion: committed finite Tiled JSON + schema validation
+  - [x] 1.1 Produce and commit the converted maps **[manual]**
     - Export `public/assets/maps/museum_start.tmx` and `museum_hallway.tmx` to finite Tiled JSON
       (`museum_start.json`, `museum_hallway.json`) with Map → *Infinite* off (flat `58×15` `data`
       arrays anchored at `(0,0)`) and **embedded** tilesets so per-tile collision `objectgroup`
@@ -56,7 +56,7 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
     - Commit the two `.json` files under `public/assets/maps/`; keep the `.tmx` sources.
     - Document the conversion step in `docs/` (Map_Converter note); reference the naming-drift note.
     - _Requirements: 1.1, 1.2_ · _Design: Map_Converter_
-  - [ ] 1.2 Write `maps.conversion.test.js` schema/validation test
+  - [x] 1.2 Write `maps.conversion.test.js` schema/validation test
     - Load the committed `museum_start.json` / `museum_hallway.json` and assert each is **finite**
       (`infinite !== true`; every tile layer has a flat `data` array sized `width*height`).
     - Assert each map contains `Tile Layer 1`, `Tile Layer 2`, and `Object Layer 1`.
@@ -65,65 +65,65 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
       (`museum_tileset`: 12, 24, 26, 27, 28, 35, 36, 37; `museum_decor`: 7, 13).
     - _Requirements: 1.1, 1.2, 12.1_ · _Design: maps.conversion.test.js_
 
-- [ ] 2. GID decode helper (pure)
-  - [ ] 2.1 Implement `gidDecode` in `src/phaser/GameScene.js` (exported helper) or a small module
+- [x] 2. GID decode helper (pure)
+  - [x] 2.1 Implement `gidDecode` in `src/phaser/GameScene.js` (exported helper) or a small module
     - Return `{ frame: gid & 0x1FFFFFFF, flipH: (gid & 0x80000000)!==0, flipV: (gid & 0x40000000)!==0, flipD: (gid & 0x20000000)!==0 }`.
     - Total function: any integer GID decodes without throwing.
     - _Requirements: 7.1, 7.2_ · _Design: `_buildSortableLayer` GID decode, research note_
-  - [ ]* 2.2 Write `GameScene.gidDecode.property.test.js`
+  - [x]* 2.2 Write `GameScene.gidDecode.property.test.js`
     - **Property N/A (supporting): decode totality & consistency** — over random GIDs (base id OR'd
       with a random subset of the 3 flip bits), `frame === gid & 0x1FFFFFFF`,
       `flipH === (gid & 0x80000000)!==0`, `flipV === (gid & 0x40000000)!==0`.
     - _Requirements: 7.1, 7.2_
-  - [ ]* 2.3 Write example tests for GID decode
+  - [x]* 2.3 Write example tests for GID decode
     - `2147483673` ⇒ id `25` + `flipH true`; `2147483684` ⇒ id `36` + `flipH true`; plain id ⇒ no
       flip; masked frame `<= 0` ⇒ treated as empty; diagonal-flagged ⇒ ignored (no throw).
     - _Requirements: 7.1, 7.2_
 
-- [ ] 3. Memories manifest module
-  - [ ] 3.1 Create `src/data/memories.js`
+- [x] 3. Memories manifest module
+  - [x] 3.1 Create `src/data/memories.js`
     - Export the static `MEMORIES` manifest (keyed/indexed by `Memory_Index`, holding `N` authored
       entries at `0..N-1`), `FUTURE_MEMORY_TEXT = 'A future memory, not yet saved ❤'`, and
       `FUTURE_MEMORY_OVERLAY = { text: [FUTURE_MEMORY_TEXT], imageUrl: null }`. No network/fetch.
     - _Requirements: 12.8, 13.5_ · _Design: Memories manifest, Future memory overlay_
-  - [ ]* 3.2 Write `memories.test.js`
+  - [x]* 3.2 Write `memories.test.js`
     - Manifest imports/exports with no network call; entries are `MemoryEntry`-shaped
       (`text: string[]`, `imageUrl: string|null`); `FUTURE_MEMORY_TEXT` is the exact string.
     - _Requirements: 12.8, 13.5_
 
-- [ ] 4. Pure zone-ordering and memory-resolution helpers
-  - [ ] 4.1 Implement `assignZoneIndices` in `src/phaser/memoryResolve.js`
+- [x] 4. Pure zone-ordering and memory-resolution helpers
+  - [x] 4.1 Implement `assignZoneIndices` in `src/phaser/memoryResolve.js`
     - Stable-sort the 6 `{x, y, id}` descriptors by ascending `x`, ties by ascending `y`, then
       ascending Tiled `id`; tag each with `zoneIndex` `0..5` (bijection onto `{0..5}`).
     - _Requirements: 12.1, 12.2_ · _Design: Zone ordering and memory resolution_
-  - [ ]* 4.2 Write `ZoneOrdering.property.test.js`
+  - [x]* 4.2 Write `ZoneOrdering.property.test.js`
     - **Property 17: Zone ordering determinism** — over 6 distinct `{x,y,id}` records (incl. equal-x
       ties), the `zoneIndex` set equals `{0,1,2,3,4,5}` and is stable across repeated calls.
     - **Validates: Requirements 12.2**
-  - [ ] 4.3 Implement `resolveZonePayload(segIndex, zoneIndex, manifest, N)` in `src/phaser/memoryResolve.js`
+  - [x] 4.3 Implement `resolveZonePayload(segIndex, zoneIndex, manifest, N)` in `src/phaser/memoryResolve.js`
     - `memoryIndex = segIndex*6 + zoneIndex`; `id = \`memory-${memoryIndex}\``; authored entry when
       `memoryIndex < N`, else the constant `FUTURE_MEMORY_OVERLAY` payload. Returns
       `{ id, memoryIndex, payload }`.
     - _Requirements: 12.3, 12.4, 12.5, 12.6, 13.5, 13.6_ · _Design: resolveZonePayload_
-  - [ ]* 4.4 Write `MemoryIndex.determinism.property.test.js`
+  - [x]* 4.4 Write `MemoryIndex.determinism.property.test.js`
     - **Property 16: Memory-index determinism** — for all `s >= 0`, `z in 0..5`,
       `memoryIndex === s*6 + z`; re-resolving `(s,z)` yields identical `memoryIndex`, `id`, payload.
     - **Validates: Requirements 12.3, 12.7**
-  - [ ]* 4.5 Write `FutureMemory.property.test.js`
+  - [x]* 4.5 Write `FutureMemory.property.test.js`
     - **Property 18: Future zone opens future-memory overlay** — for all `memoryIndex >= N`, payload
       `text === ["A future memory, not yet saved ❤"]`, `imageUrl === null`, `id === memory-{n}`.
     - **Validates: Requirements 12.6, 13.5**
-  - [ ]* 4.6 Write `MemoryResolve.test.js` example tests
+  - [x]* 4.6 Write `MemoryResolve.test.js` example tests
     - With `N = 8`: `seg0 zone0 ⇒ memory-0`, `seg0 zone1 ⇒ memory-1`, `seg1 zone0 ⇒ memory-6`,
       `seg1 zone1 ⇒ memory-7` (authored); `seg1 zone2 ⇒ memory-8` ⇒ future payload; every `id`
       matches `memory-{n}`; re-resolving yields identical content.
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7_
 
-- [ ] 5. Checkpoint — pure helpers
+- [x] 5. Checkpoint — pure helpers
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. CollisionBuilder (per-tile AABB static bodies)
-  - [ ] 6.1 Implement `src/phaser/CollisionBuilder.js`
+- [x] 6. CollisionBuilder (per-tile AABB static bodies)
+  - [x] 6.1 Implement `src/phaser/CollisionBuilder.js`
     - `classifyTile(tileData)` ⇒ `'collision'` when a parseable collision `objectgroup` is present,
       else `'floor'` (absent **or** unparseable ⇒ floor, no throw).
     - `tileLocalAABB(tileData)` ⇒ AABB in tile-local px (rect uses x/y/w/h; polygon uses min/max of
@@ -132,29 +132,29 @@ marked **[manual]** require the author-time Tiled app and are optional to automa
       `worldOffsetX + col*16 + localAABB.x` / `row*16 + localAABB.y`; returns created bodies for
       later release; wired via `physics.add.collider`. No collision layer.
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.7, 6.8_ · _Design: CollisionBuilder_
-  - [ ]* 6.2 Write `CollisionBuilder.classification.property.test.js`
+  - [x]* 6.2 Write `CollisionBuilder.classification.property.test.js`
     - **Property 14: Collision classification** — over tiles of `{no objectgroup}`, `{rectangle}`,
       `{polygon}`, `{malformed}`: floor/unparseable ⇒ occupiable, collision ⇒ enclosing AABB, and
       each AABB world position equals its tile-local AABB offset by the segment world offset.
     - **Validates: Requirements 6.2, 6.3, 6.4, 6.7, 6.8**
-  - [ ]* 6.3 Write example tests for CollisionBuilder
+  - [x]* 6.3 Write example tests for CollisionBuilder
     - Rectangle tile (e.g. `museum_tileset` 12) ⇒ expected AABB; polygon tile ⇒ min/max AABB;
       malformed objectgroup ⇒ classified floor, no body, build continues.
     - _Requirements: 6.2, 6.3, 6.4, 6.8_
 
-- [ ] 7. PlayerController two-sided clamp
-  - [ ] 7.1 Add `minX` / `maxX` clamp to `src/phaser/PlayerController.js`
+- [x] 7. PlayerController two-sided clamp
+  - [x] 7.1 Add `minX` / `maxX` clamp to `src/phaser/PlayerController.js`
     - Inject `minX` (start-map floor left edge) and `maxX` (final segment floor right edge). After
       velocity resolution each `update()`: `sprite.x = min(max(sprite.x, minX), maxX)`; zero
       leftward velocity at `minX` and rightward velocity at `maxX`. Keep `setCollideWorldBounds`
       with world left/right pinned to `minX`/`maxX`. No other movement change.
     - _Requirements: 5.3, 5.4, 13.3_ · _Design: PlayerController_
-  - [ ]* 7.2 Write `PlayerController.clamp.property.test.js`
+  - [x]* 7.2 Write `PlayerController.clamp.property.test.js`
     - **Property 1: Left-boundary invariant** — player X never `< minX`; leftward input at `minX`
       leaves X unchanged. **Validates: Requirements 5.3, 5.4**
     - **Property 6: Right-boundary invariant** (second block) — player X never `> maxX`; rightward
       input at `maxX` leaves X unchanged. **Validates: Requirements 13.3**
-  - [ ]* 7.3 Write example tests for the clamp
+  - [x]* 7.3 Write example tests for the clamp
     - Input left at `minX` ⇒ X unchanged, leftward velocity zeroed; input right at `maxX` ⇒ X
       unchanged, rightward velocity zeroed.
     - _Requirements: 5.3, 5.4, 13.3_
