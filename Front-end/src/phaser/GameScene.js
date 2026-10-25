@@ -4,6 +4,35 @@ import HotspotManager from './HotspotManager.js';
 import eventBus from './EventBus.js';
 
 /**
+ * Decode a Tiled GID into its frame index and orientation flags.
+ *
+ * Tiled encodes tile flip/rotation as the top 3 bits OR'd onto the GID:
+ * `FLIPPED_HORIZONTALLY = 0x80000000`, `FLIPPED_VERTICALLY = 0x40000000`,
+ * `FLIPPED_DIAGONALLY = 0x20000000`. The low 29 bits (`gid & 0x1FFFFFFF`) are
+ * the real tile index. This helper separates both concerns so callers can draw
+ * the correct frame and apply the orientation (`setFlipX` / `setFlipY`).
+ *
+ * Totality: this never throws for any integer input (0, negative, very large).
+ * A masked `frame <= 0` is returned as-is; callers treat `<= 0` as empty.
+ *
+ * Note: JS bitwise `&` operates on 32-bit signed integers, so `gid & 0x80000000`
+ * yields a negative number for high-bit-set GIDs — comparing `!== 0` is still
+ * correct because a set bit is simply non-zero. The frame mask `0x1FFFFFFF`
+ * clears the sign bit, so the frame is always in the non-negative range.
+ *
+ * @param {number} gid - Raw Tiled GID (may carry flip flags in the top 3 bits).
+ * @returns {{ frame: number, flipH: boolean, flipV: boolean, flipD: boolean }}
+ */
+export function gidDecode(gid) {
+  return {
+    frame: gid & 0x1fffffff,
+    flipH: (gid & 0x80000000) !== 0,
+    flipV: (gid & 0x40000000) !== 0,
+    flipD: (gid & 0x20000000) !== 0
+  };
+}
+
+/**
  * GameScene — main game scene handling tile map loading, player spawning, and movement.
  *
  * Responsibilities:
