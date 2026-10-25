@@ -1,0 +1,10 @@
+.vscode
+Tile_Creator/
+Memories/
+
+# Added: dependencies, build output, OS junk, local media staging
+node_modules/
+dist/
+Front-end/dist/
+.DS_Store
+External-Bucket/
