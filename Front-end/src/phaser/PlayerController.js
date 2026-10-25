@@ -5,7 +5,13 @@
  * Passes flat velocity values to sprite.setVelocity() — Phaser Arcade Physics
  * handles frame-rate-independent integration internally (do NOT multiply by deltaTime).
  *
- * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5
+ * Also applies a two-sided horizontal clamp to keep the player inside the bounded
+ * hallway: X is constrained to [minX, maxX] each update, with leftward velocity zeroed
+ * at minX and rightward velocity zeroed at maxX. `maxX` may be updated at runtime via
+ * setBounds() as the final segment's right edge becomes known (Req 13.3). GameScene is
+ * responsible for pinning the physics world left/right bounds to the same [minX, maxX].
+ *
+ * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 5.3, 5.4, 13.3
  */
 export default class PlayerController {
   /**
@@ -33,6 +39,21 @@ export default class PlayerController {
 
     /** @type {number} */
     this._animFrameRate = 8;
+
+    /**
+     * Left horizontal clamp bound (start-map floor left edge). Defaults to
+     * -Infinity so the clamp is a no-op until bounds are provided via setBounds().
+     * @type {number}
+     */
+    this.minX = -Infinity;
+
+    /**
+     * Right horizontal clamp bound (final segment floor right edge). Defaults to
+     * +Infinity so the clamp is a no-op until the final segment's right edge is
+     * known; GameScene/SegmentManager may update it at runtime (Req 13.3).
+     * @type {number}
+     */
+    this.maxX = Infinity;
 
     // Set up key press/release tracking via scene input
     this._setupKeyTracking();
@@ -183,6 +204,59 @@ export default class PlayerController {
       if (this.sprite.anims && typeof this.sprite.anims.play === 'function') {
         this.sprite.anims.play(idleKey, true);
       }
+    }
+
+    // Two-sided horizontal clamp. Net effect:
+    //   sprite.x = Math.min(Math.max(sprite.x, minX), maxX)
+    // with the directional velocity zeroed at the respective edge. A no-op while
+    // bounds are the defaults (-Infinity / +Infinity).
+    this._applyHorizontalClamp();
+  }
+
+  /**
+   * Set the horizontal clamp bounds. `maxX` may be updated at runtime as the final
+   * segment's right edge becomes known (Req 13.3). GameScene pins the physics world
+   * left/right bounds to the same [minX, maxX] (that wiring lives in GameScene, not
+   * here). Pass undefined for a bound to leave it unchanged.
+   *
+   * @param {number} [minX] - Left clamp bound (start-map floor left edge)
+   * @param {number} [maxX] - Right clamp bound (final segment floor right edge)
+   */
+  setBounds(minX, maxX) {
+    if (typeof minX === 'number') this.minX = minX;
+    if (typeof maxX === 'number') this.maxX = maxX;
+  }
+
+  /**
+   * Clamp the sprite's X into [minX, maxX] and zero the velocity component pushing
+   * past the hit edge. Robust against mocks that lack a full physics body.
+   */
+  _applyHorizontalClamp() {
+    if (this.sprite.x < this.minX) {
+      this.sprite.x = this.minX;
+      // Moving left into the edge — stop leftward velocity.
+      if ((this.sprite.body?.velocity?.x ?? 0) < 0) {
+        this._zeroVelocityX();
+      }
+    } else if (this.sprite.x > this.maxX) {
+      this.sprite.x = this.maxX;
+      // Moving right into the edge — stop rightward velocity.
+      if ((this.sprite.body?.velocity?.x ?? 0) > 0) {
+        this._zeroVelocityX();
+      }
+    }
+  }
+
+  /**
+   * Zero only the X velocity component, using whichever sprite API is available
+   * (keeps the file's existing setVelocity usage working with partial mocks).
+   */
+  _zeroVelocityX() {
+    if (typeof this.sprite.setVelocityX === 'function') {
+      this.sprite.setVelocityX(0);
+    } else if (typeof this.sprite.setVelocity === 'function') {
+      const y = this.sprite.body?.velocity?.y ?? 0;
+      this.sprite.setVelocity(0, y);
     }
   }
 
