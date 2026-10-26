@@ -5,7 +5,13 @@ import SegmentManager from './SegmentManager.js';
 import InteractionManager from './InteractionManager.js';
 import PromptLabel from './PromptLabel.js';
 import { assignZoneIndices, resolveZonePayload } from './memoryResolve.js';
+import {
+  assignPaintingIndices,
+  resolvePaintingImage,
+  partitionObjectsByType
+} from './paintingResolve.js';
 import { MEMORIES } from '../data/memories.js';
+import { PAINTINGS, PAINTING_PLACEHOLDER_KEY } from '../data/paintings.js';
 import eventBus from './EventBus.js';
 
 /** Width of a hallway segment in px: 58 tiles * 16px = 928. */
@@ -21,6 +27,19 @@ const SEGMENT_WIDTH_PX = 58 * 16;
  */
 const ZONE_WIDTH_PX = 3 * 16;
 const ZONE_HEIGHT_PX = 3 * 16;
+
+/**
+ * The set of texture keys that belong to wall paintings (the placeholder plus every
+ * key referenced by the PAINTINGS source). A `loaderror` on any of these is handled
+ * locally (non-fatal) rather than flipping the scene-level `_loadError` (Req 5.4).
+ * @type {Set<string>}
+ */
+const PAINTING_TEXTURE_KEYS = new Set([
+  PAINTING_PLACEHOLDER_KEY,
+  ...Object.values(PAINTINGS)
+    .map((entry) => entry && entry.key)
+    .filter((key) => typeof key === 'string' && key.length > 0)
+]);
 
 /**
  * Decode a Tiled GID into its frame index and orientation flags.
@@ -157,6 +176,18 @@ export default class GameScene extends Scene {
      */
     this.FLOOR_DEPTH = 0;
 
+    /**
+     * Fixed depth for wall paintings (flat art hung inside the framed canvases).
+     * Must stay `> FLOOR_DEPTH` (0) so paintings draw above the back wall, and
+     * STRICTLY `<` the minimum actor feet world Y so every `Y_Sort_Group` member
+     * (player + decor, whose depth equals its positive feet world Y) always draws
+     * in front of the paintings. Actors stand on the floor band dozens of px down,
+     * so a small single-digit constant is safely below every sort-group member
+     * (Req 4.4).
+     * @type {number}
+     */
+    this.WALL_DEPTH = 1;
+
     /** @type {Phaser.Types.Input.Keyboard.CursorKeys|null} */
     this.cursors = null;
 
@@ -171,6 +202,16 @@ export default class GameScene extends Scene {
 
     /** @type {boolean} */
     this._playerSpriteError = false;
+
+    /**
+     * Texture keys of painting images that failed to load. Painting load errors are
+     * NON-fatal: a key is recorded here so `_createPaintingSprite` falls back to the
+     * placeholder, and the scene-level `_loadError` is never set (Req 5.4). Always
+     * includes every painting key (the placeholder plus any authored keys); currently
+     * only the placeholder key is loaded.
+     * @type {Set<string>}
+     */
+    this._paintingLoadErrors = new Set();
 
     /**
      * World X where segment index 0 begins (the start-map floor right edge). Stored
@@ -208,6 +249,11 @@ export default class GameScene extends Scene {
       if (fileObj.key === 'player') {
         // Don't set global _loadError for player sprite — handled separately with timeout
         this._playerSpriteError = true;
+      } else if (this._isPaintingTextureKey(fileObj.key)) {
+        // Painting textures fail LOCALLY (Req 5.4): flip only a per-key "missing"
+        // marker so `_createPaintingSprite` falls back to the placeholder. Never set
+        // the scene-level `_loadError` or halt the scene for a painting load failure.
+        this._paintingLoadErrors.add(fileObj.key);
       } else {
         this._loadError = true;
 
@@ -253,6 +299,16 @@ export default class GameScene extends Scene {
       frameWidth: 16,
       frameHeight: 32
     });
+
+    // Load the placeholder painting texture under PAINTING_PLACEHOLDER_KEY, reusing the
+    // tiny bundled placeholder asset (Req 5.1). This is the fallback for Future_Paintings,
+    // missing PAINTINGS entries, and failed painting loads. A `loaderror` on any painting
+    // texture is handled LOCALLY by the listener above (a per-key "missing" marker) and
+    // MUST NOT set the scene-level `_loadError` or halt the scene (Req 5.4).
+    //
+    // Future: for each authored PAINTINGS entry with a url/local asset, load its texture
+    // under the entry's `key` here — no other code change is needed (Req 5.3).
+    this.load.image(PAINTING_PLACEHOLDER_KEY, 'assets/photos/placeholder.png');
 
     // Start a 10-second timeout for player sprite loading.
     // Textures are not cached until preload completes, so we use load.on('complete')
@@ -693,6 +749,8 @@ export default class GameScene extends Scene {
     let collisionBodies = [];
     /** @type {object[]} */
     const zones = [];
+    /** @type {object[]} */
+    const paintingSprites = [];
 
     // Segment tile data is read from the RAW Tiled JSON (flat GID arrays), not the
     // parsed tilemap. Phaser's parsed `LayerData.data` is a 2D array of Tile objects
@@ -723,25 +781,36 @@ export default class GameScene extends Scene {
       .concat(this._buildLayerCollision(layer1, worldOffsetX))
       .concat(this._buildLayerCollision(layer2, worldOffsetX));
 
-    // (c) Interaction zones from the hallway's `Object Layer 1`.
+    // (c) Partition the hallway's `Object Layer 1` by Tiled type. Only `memory_zone`
+    //     objects become Interaction_Zones and only `painting` objects become
+    //     Painting_Sprites; any other/empty/missing-typed object is ignored by both
+    //     (Req 1.1–1.5, 6.1). Zone indexing runs over `memory_zone` objects ONLY, so
+    //     adding painting objects can never shift `Zone_Index`/`Memory_Index` (Req 1.6).
     const objectLayer =
       typeof this.hallwayMap.getObjectLayer === 'function'
         ? this.hallwayMap.getObjectLayer('Object Layer 1')
         : null;
     const rawObjects =
       objectLayer && Array.isArray(objectLayer.objects) ? objectLayer.objects : [];
+    const { memoryZones, paintings } = partitionObjectsByType(rawObjects);
 
-    if (rawObjects.length > 0) {
-      const descriptors = rawObjects.map((o) => ({
+    // (c1) Interaction zones from `memory_zone` objects — indexing UNCHANGED from the
+    //      pre-feature behavior (assignZoneIndices + resolveZonePayload + _createZone).
+    //      Each zone's size comes from the authored Tiled rectangle (`width`/`height`);
+    //      _createZone falls back to ZONE_WIDTH_PX/ZONE_HEIGHT_PX for a sizeless object.
+    if (memoryZones.length > 0) {
+      const descriptors = memoryZones.map((o) => ({
         x: Number.isFinite(o.x) ? o.x : 0,
         y: Number.isFinite(o.y) ? o.y : 0,
-        id: Number.isFinite(o.id) ? o.id : 0
+        id: Number.isFinite(o.id) ? o.id : 0,
+        width: Number.isFinite(o.width) ? o.width : 0,
+        height: Number.isFinite(o.height) ? o.height : 0
       }));
       const ordered = assignZoneIndices(descriptors);
 
       for (const d of ordered) {
         const resolved = resolveZonePayload(index, d.zoneIndex, MEMORIES, authoredMemoryCount);
-        const zoneObj = this._createZone(worldOffsetX + d.x, d.y);
+        const zoneObj = this._createZone(worldOffsetX + d.x, d.y, d.width, d.height);
         zones.push({
           zone: zoneObj,
           zoneIndex: d.zoneIndex,
@@ -756,7 +825,44 @@ export default class GameScene extends Scene {
       }
     }
 
-    return { index, worldOffsetX, floorSprites, layer2Sprites, collisionBodies, zones };
+    // (c2) Painting render pass from `painting` objects. Rank them by the SAME
+    //      (x, y, id) rule as zones so painting rank k aligns with memory-zone rank k,
+    //      resolve each rank's texture key (authored or placeholder), and render a flat
+    //      wall sprite filling the object's world-offset bounds at WALL_DEPTH. Paintings
+    //      are purely visual: no zone, no event, no physics body (Req 3.1–3.3, 4.1, 7.1).
+    if (paintings.length > 0) {
+      const orderedPaintings = assignPaintingIndices(
+        paintings.map((o) => ({
+          x: Number.isFinite(o.x) ? o.x : 0,
+          y: Number.isFinite(o.y) ? o.y : 0,
+          id: Number.isFinite(o.id) ? o.id : 0,
+          width: Number.isFinite(o.width) ? o.width : 0,
+          height: Number.isFinite(o.height) ? o.height : 0
+        }))
+      );
+
+      for (const p of orderedPaintings) {
+        const { key } = resolvePaintingImage(index, p.paintingIndex, PAINTINGS, authoredMemoryCount);
+        const sprite = this._createPaintingSprite(
+          worldOffsetX + p.x,
+          p.y,
+          p.width,
+          p.height,
+          key
+        );
+        if (sprite) paintingSprites.push(sprite);
+      }
+    }
+
+    return {
+      index,
+      worldOffsetX,
+      floorSprites,
+      layer2Sprites,
+      collisionBodies,
+      zones,
+      paintingSprites
+    };
   }
 
   /**
@@ -886,6 +992,71 @@ export default class GameScene extends Scene {
   }
 
   /**
+   * True when `key` is a wall-painting texture key (the placeholder or any key
+   * referenced by the PAINTINGS source). Used to classify `loaderror` events so a
+   * painting load failure is handled locally and never sets `_loadError` (Req 5.4).
+   *
+   * @param {string|undefined} key - the failed file's load key.
+   * @returns {boolean}
+   * @private
+   */
+  _isPaintingTextureKey(key) {
+    return typeof key === 'string' && PAINTING_TEXTURE_KEYS.has(key);
+  }
+
+  /**
+   * Create a Painting_Sprite that fully covers a painting object's world-offset
+   * bounds at {@link GameScene#WALL_DEPTH} (flat wall art, below every Y-sort member).
+   *
+   * - Uses `this.add.image` (NOT `this.physics.add.*`), so the sprite has NO physics
+   *   body and never blocks the player (Req 4.5).
+   * - Substitutes {@link PAINTING_PLACEHOLDER_KEY} when the requested `textureKey` is
+   *   absent from the texture cache or recorded as a failed painting load, so a missing
+   *   image still renders the placeholder and never throws (Req 5.2, 5.4).
+   * - Top-left origin at `(worldX, worldY)` and `setDisplaySize(width, height)` (when
+   *   both are positive) stretch the texture to exactly fill the authored bounds — full
+   *   coverage with no gaps (Req 4.2, 4.4). A degenerate zero-size object skips the
+   *   resize and renders at the texture's native size (no crash).
+   * - `setDepth(WALL_DEPTH)` layers it above the floor and below every actor (Req 4.4).
+   *
+   * Returns null in headless/mock contexts where `this.add.image` is unavailable, so
+   * segment building stays inert under partial mocks.
+   *
+   * @param {number} worldX - world X of the painting's top-left (segment offset applied).
+   * @param {number} worldY - world Y of the painting's top-left.
+   * @param {number} width - painting width in px (frame inner area).
+   * @param {number} height - painting height in px (frame inner area).
+   * @param {string} textureKey - resolved texture key (authored or placeholder).
+   * @returns {Phaser.GameObjects.Image|null}
+   * @private
+   */
+  _createPaintingSprite(worldX, worldY, width, height, textureKey) {
+    if (typeof this.add?.image !== 'function') return null;
+
+    const exists =
+      this.textures && typeof this.textures.exists === 'function'
+        ? this.textures.exists(textureKey)
+        : false;
+    const failed = this._paintingLoadErrors && this._paintingLoadErrors.has(textureKey);
+    const key = exists && !failed ? textureKey : PAINTING_PLACEHOLDER_KEY;
+
+    const sprite = this.add.image(worldX, worldY, key);
+    if (sprite && typeof sprite.setOrigin === 'function') sprite.setOrigin(0, 0);
+    if (
+      sprite &&
+      typeof sprite.setDisplaySize === 'function' &&
+      Number.isFinite(width) &&
+      Number.isFinite(height) &&
+      width > 0 &&
+      height > 0
+    ) {
+      sprite.setDisplaySize(width, height);
+    }
+    if (sprite && typeof sprite.setDepth === 'function') sprite.setDepth(this.WALL_DEPTH);
+    return sprite;
+  }
+
+  /**
    * Create a world-offset interaction overlap zone for a segment. Uses the scene's
    * zone factory when available; falls back to a static-body rectangle. Returns a
    * minimal stub object if no zone factory exists (keeps mock tests inert).
@@ -928,7 +1099,7 @@ export default class GameScene extends Scene {
    * Destroys decor sprites (removing them from the Y-sort group), collision bodies,
    * and interaction zones. Every call is guarded so release never throws.
    *
-   * @param {{ floorSprites?: object[], layer2Sprites?: object[], collisionBodies?: object[], zones?: object[] }} segment
+   * @param {{ floorSprites?: object[], layer2Sprites?: object[], collisionBodies?: object[], zones?: object[], paintingSprites?: object[] }} segment
    * @private
    */
   _releaseSegment(segment) {
@@ -951,6 +1122,13 @@ export default class GameScene extends Scene {
     const bodies = Array.isArray(segment.collisionBodies) ? segment.collisionBodies : [];
     for (const body of bodies) {
       if (body && typeof body.destroy === 'function') body.destroy();
+    }
+
+    // Painting sprites are flat wall art: they never joined the Y-sort group and have
+    // no physics body, so mirror the floorSprites branch — a plain destroy (Req 4.6, 4.7).
+    const paintings = Array.isArray(segment.paintingSprites) ? segment.paintingSprites : [];
+    for (const sprite of paintings) {
+      if (sprite && typeof sprite.destroy === 'function') sprite.destroy();
     }
 
     const zones = Array.isArray(segment.zones) ? segment.zones : [];

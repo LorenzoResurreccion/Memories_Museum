@@ -21,7 +21,8 @@ Front-end/
 │   └── assets/                # pixel assets only — tiny footprint
 │       ├── maps/              # Tiled-exported .json maps
 │       ├── tilesets/          # 16px tileset .png
-│       └── sprites/           # character walk sheets (16×32 frames)
+│       ├── sprites/           # character walk sheets (16×32 frames)
+│       └── photos/            # bundled placeholder painting texture (heavy media stays external)
 └── src/
     ├── main.jsx               # React entry
     ├── App.jsx                # top-level controller: owns overlay state, bridges EventBus
@@ -32,6 +33,7 @@ Front-end/
     │   └── __tests__/         # component + integration + property tests
     ├── data/
     │   ├── memories.js        # MEMORIES manifest (static content) + future-memory text
+    │   ├── paintings.js       # PAINTINGS source (per-memory wall art) + placeholder key
     │   └── __tests__/
     ├── __tests__/             # cross-cutting tests (e.g. map conversion)
     └── phaser/
@@ -43,6 +45,7 @@ Front-end/
         ├── InteractionManager.js # E-key edge detection, zone registry, emits hotspot-activated
         ├── PromptLabel.js      # floating [E] prompt pinned above the player
         ├── memoryResolve.js    # zone ordering + memory-index resolution against MEMORIES
+        ├── paintingResolve.js  # object type partition + painting ordering/image resolution
         ├── EventBus.js         # pub/sub singleton bridging Phaser <-> React
         └── __tests__/          # scene/manager/eventbus property + example tests
 ```
@@ -56,7 +59,9 @@ Front-end/
 
 ## Memory content (no backend)
 
-There is no API or separate data store. Memory content lives in a static ES module, `src/data/memories.js` — the `MEMORIES` manifest, a plain object keyed by contiguous `Memory_Index` (`0 .. N-1`), each entry carrying `text` (dialogue pages) and `imageUrl` (or `null`). The Tiled maps only hold interaction-zone *positions* (object-layer points); the segment build step resolves each zone to a manifest entry via `memoryResolve.js`, or to the "future memory" placeholder when the zone index is `>= N`. `N` (the authored count) drives the hallway's right bound. Heavy media (photos/audio) is referenced by URL (e.g. an external bucket/CDN) rather than bundled or served by an app.
+There is no API or separate data store. Memory content lives in a static ES module, `src/data/memories.js` — the `MEMORIES` manifest, a plain object keyed by contiguous `Memory_Index` (`0 .. N-1`), each entry carrying `text` (dialogue pages) and `imageUrl` (or `null`). A parallel static module, `src/data/paintings.js` — the `PAINTINGS` source keyed by the same `Memory_Index` plus `PAINTING_PLACEHOLDER_KEY` — maps each memory to the pixel art hung inside its frame (entries start as placeholders; swap in real art by editing the `key`/`url` here, adding the asset, and loading it in `GameScene.preload()`).
+
+The Tiled `Object Layer 1` is **type-partitioned**: each object's Tiled class (`type ?? class`) must be `memory_zone` (becomes an interaction zone) or `painting` (becomes wall art); any other/untyped object is ignored by both. The segment build step resolves each zone to a manifest entry via `memoryResolve.js`, or to the "future memory" placeholder when the zone index is `>= N`, and resolves each painting's image via `paintingResolve.js`. Zone indexing runs over `memory_zone` objects ONLY, so adding paintings never shifts `Memory_Index`. `N` (the authored count) drives the hallway's right bound. Heavy media (photos/audio) is referenced by URL (e.g. an external bucket/CDN) rather than bundled or served by an app; the small bundled placeholder lives in `public/assets/photos/`.
 
 ## Tile_Creator/ (asset generation)
 

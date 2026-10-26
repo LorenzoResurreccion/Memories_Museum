@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { resolveZonePayload, assignZoneIndices } from '../memoryResolve.js';
+import { partitionObjectsByType } from '../paintingResolve.js';
 import { FUTURE_MEMORY_TEXT } from '../../data/memories.js';
 
 const N = 8;
@@ -111,5 +112,75 @@ describe('assignZoneIndices (Req 12.1, 12.2)', () => {
     // Pure: original input array is not mutated.
     expect(input[0]).toEqual({ x: 40, y: 10, id: 3 });
     expect(input).toHaveLength(6);
+  });
+});
+
+/**
+ * Backward compatibility with the Wall Paintings type-partition change (Req 2.3, 7.3).
+ *
+ * `_buildSegment` now reads `Object Layer 1` via `partitionObjectsByType` and ranks
+ * ONLY the `memory_zone` subset before resolving. These tests prove that, with the 6
+ * existing interaction objects tagged `type: 'memory_zone'`, the resolved
+ * `hotspot-activated` payloads for seg0 zone0..5 and seg1 zone0 match the PRE-feature
+ * `memory-{n}` resolution EXACTLY — and that adding `painting` objects to the same
+ * layer does not change any of them (Req 1.6, 2.1, 2.2).
+ */
+describe('backward compatibility: memory_zone partition preserves resolution (N = 8)', () => {
+  // The 6 authored interaction objects at each frame's left edge, now type-tagged.
+  const xs = [48, 208, 368, 512, 672, 832];
+  const memoryZoneObjects = xs.map((x, i) => ({
+    type: 'memory_zone',
+    x,
+    y: 176,
+    id: 10 + i,
+    width: 0,
+    height: 0
+  }));
+
+  // Painting objects that share the layer but must not affect zone resolution.
+  const paintingObjects = xs.map((x, i) => ({
+    type: 'painting',
+    x: x + 4,
+    y: 150,
+    id: 20 + i,
+    width: 40,
+    height: 24
+  }));
+
+  /** Resolve a segment's zones exactly as `_buildSegment` does, from a raw object list. */
+  function resolveSegment(segIndex, rawObjects) {
+    const { memoryZones } = partitionObjectsByType(rawObjects);
+    const ordered = assignZoneIndices(
+      memoryZones.map((o) => ({ x: o.x, y: o.y, id: o.id }))
+    );
+    return ordered.map((d) => resolveZonePayload(segIndex, d.zoneIndex, manifest, N));
+  }
+
+  it('seg0 zone0..5 resolve to memory-0..5 with the authored payloads', () => {
+    const resolved = resolveSegment(0, memoryZoneObjects);
+    expect(resolved).toHaveLength(6);
+    for (let z = 0; z <= 5; z += 1) {
+      expect(resolved[z].memoryIndex).toBe(z);
+      expect(resolved[z].id).toBe(`memory-${z}`);
+      expect(resolved[z].payload).toEqual({ id: `memory-${z}`, text: [`m${z}`], imageUrl: null });
+    }
+  });
+
+  it('seg1 zone0 resolves to memory-6 (authored)', () => {
+    const resolved = resolveSegment(1, memoryZoneObjects);
+    expect(resolved[0].memoryIndex).toBe(6);
+    expect(resolved[0].id).toBe('memory-6');
+    expect(resolved[0].payload).toEqual({ id: 'memory-6', text: ['m6'], imageUrl: null });
+  });
+
+  it('adding painting objects to the same layer does not change any zone resolution', () => {
+    const withoutPaintings = resolveSegment(0, memoryZoneObjects);
+    const withPaintings = resolveSegment(0, [...paintingObjects, ...memoryZoneObjects, ...paintingObjects]);
+    expect(withPaintings).toEqual(withoutPaintings);
+  });
+
+  it('builds exactly 6 zones regardless of painting count (count invariance)', () => {
+    const { memoryZones } = partitionObjectsByType([...memoryZoneObjects, ...paintingObjects]);
+    expect(memoryZones).toHaveLength(6);
   });
 });

@@ -115,22 +115,42 @@ describe('maps conversion — finite Tiled JSON schema', () => {
     );
   });
 
-  describe('museum_hallway Object Layer 1', () => {
+  describe('museum_hallway Object Layer 1 (wall-paintings)', () => {
     const hallway = loadMap('museum_hallway');
     const objectLayer = findLayer(hallway, 'Object Layer 1');
 
-    it('has exactly 6 objects', () => {
+    /** @param {string} type */
+    const objectsOfType = (type) =>
+      objectLayer.objects.filter((o) => (o && (o.type ?? o.class ?? '')) === type);
+
+    it('exists and carries typed objects', () => {
       expect(objectLayer).toBeDefined();
       expect(Array.isArray(objectLayer.objects)).toBe(true);
-      expect(objectLayer.objects).toHaveLength(6);
     });
 
-    it('all 6 objects are polygon shapes', () => {
-      // NOTE: the task wording calls these "rectangle objects", but the committed
-      // Tiled source authors them as POLYGON objects (each carries a `polygon`
-      // array of points). Assert the shape that matches the committed JSON.
-      for (const obj of objectLayer.objects) {
-        expect(Array.isArray(obj.polygon)).toBe(true);
+    it('has exactly 6 memory_zone objects and exactly 6 painting objects', () => {
+      // The segment-build type partition reads each object's Tiled class as
+      // `type ?? class`; only these two values produce zones / paintings.
+      expect(objectsOfType('memory_zone')).toHaveLength(6);
+      expect(objectsOfType('painting')).toHaveLength(6);
+    });
+
+    it('authors every painting as a rectangle with positive width/height', () => {
+      // Paintings are stretched to fill their authored bounds, so each must carry a
+      // real (non-polygon) size — not a zero-size point or polygon (Req 6.2–6.4).
+      for (const obj of objectsOfType('painting')) {
+        expect(Array.isArray(obj.polygon)).toBe(false);
+        expect(obj.width).toBeGreaterThan(0);
+        expect(obj.height).toBeGreaterThan(0);
+      }
+    });
+
+    it('authors every memory_zone as a rectangle with positive width/height', () => {
+      // Zones take their interaction footprint from the authored rectangle.
+      for (const obj of objectsOfType('memory_zone')) {
+        expect(Array.isArray(obj.polygon)).toBe(false);
+        expect(obj.width).toBeGreaterThan(0);
+        expect(obj.height).toBeGreaterThan(0);
       }
     });
   });

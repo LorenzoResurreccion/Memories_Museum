@@ -11,6 +11,7 @@ The game is fully self-contained and static — all memory content is authored d
 *   **2.5D Walkable Gallery Depth:** Vertical Y-sorting within a side-scrolling layout. The player moves left/right and up/down across the floor, dynamically sorting behind or in front of benches, props, and decor.
 *   **Bounded Infinite Hallway:** The gallery is procedurally stitched from repeating segments as the player walks, bounded on the right by the number of authored memories. Segments generate and recycle on the fly to keep the runtime light.
 *   **Interaction Zones:** Invisible zones span the full width of each framed canvas. Standing in front of one shows a floating `[E]` prompt; pressing `E` opens its dialogue and/or photo.
+*   **Wall Paintings:** Every framed canvas displays a pixel-art painting for its memory, so each memory shows up both as a floor interaction zone and as art hanging in its frame. Paintings are purely visual — no interaction, no collision — and fall back to a placeholder until real art is authored.
 *   **Phaser-to-React State Bridge:** A lightweight decoupled runtime. Player interaction inside the WebGL game canvas dispatches custom events through a shared EventBus to trigger smooth HTML/React UI overlays.
 *   **Light Runtime Footprint:** Pixel assets ship with the game; heavy media (high-res photos, audio) is intended to be served from external/CDN storage rather than bundled.
 
@@ -43,7 +44,9 @@ Memories are authored in a static manifest, `Front-end/src/data/memories.js` (`M
 | `text`     | yes      | Array of dialogue pages (the letter content)       |
 | `imageUrl` | no       | Link to the high-res photo (`null` if none)        |
 
-The gallery is a bounded "infinite hallway": the authored count `N` sets how far it extends (`finalSegmentIndex = N ≥ 1 ? floor((N-1)/6) : 0`). The Tiled maps hold only interaction-zone *positions* (object-layer points); each zone is resolved at runtime to a manifest entry, or to a single "future memory" placeholder page for zones past the authored memories. The player start is a `player_spawn` object in the spawn object layer, with an in-bounds floor fallback.
+Wall paintings are authored in a parallel static source, `Front-end/src/data/paintings.js` (`PAINTINGS`), keyed by the same `Memory_Index`. Each entry names the texture for that memory's frame; entries start as a shared placeholder and are swapped for real pixel art later by editing the references (plus adding the asset and loading it in `preload()`), with no other code change.
+
+The gallery is a bounded "infinite hallway": the authored count `N` sets how far it extends (`finalSegmentIndex = N ≥ 1 ? floor((N-1)/6) : 0`). The Tiled maps hold only object *positions/sizes* on a type-aware `Object Layer 1` — `memory_zone` objects become interaction zones (resolved at runtime to a manifest entry, or a single "future memory" placeholder page past the authored memories) and `painting` objects become the wall art; zone indexing ignores paintings, so adding art never shifts a memory. The player start is a `player_spawn` object in the spawn object layer, with an in-bounds floor fallback.
 
 ---
 

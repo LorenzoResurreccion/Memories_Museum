@@ -85,6 +85,7 @@ vi.mock('../PromptLabel.js', () => ({
 
 import GameScene from '../GameScene.js';
 import eventBus from '../EventBus.js';
+import { PAINTING_PLACEHOLDER_KEY } from '../../data/paintings.js';
 
 /** Number of authored memories in the manifest (drives finalSegmentIndex / maxX). */
 const AUTHORED_MEMORY_COUNT = 8;
@@ -231,6 +232,51 @@ describe('GameScene', () => {
       [...allMapArgs, ...allImageArgs, ...allSpritesheetArgs].forEach((arg) => {
         expect(String(arg)).not.toMatch(/madison/i);
       });
+    });
+
+    it('registers the placeholder painting texture under PAINTING_PLACEHOLDER_KEY (Req 5.1)', () => {
+      const scene = new GameScene();
+
+      const imageMock = vi.fn();
+      scene.load = {
+        on: vi.fn(),
+        tilemapTiledJSON: vi.fn(),
+        image: imageMock,
+        spritesheet: vi.fn()
+      };
+      scene.time = { delayedCall: vi.fn() };
+      scene.textures = { exists: vi.fn().mockReturnValue(false) };
+
+      scene.preload();
+
+      // The placeholder painting reuses the bundled placeholder asset.
+      expect(imageMock).toHaveBeenCalledWith(
+        PAINTING_PLACEHOLDER_KEY,
+        'assets/photos/placeholder.png'
+      );
+    });
+
+    it('handles a painting-texture loaderror locally without setting _loadError (Req 5.4)', () => {
+      const scene = new GameScene();
+
+      let errorHandler;
+      scene.load = {
+        on: (event, handler) => { errorHandler = handler; },
+        tilemapTiledJSON: vi.fn(),
+        image: vi.fn(),
+        spritesheet: vi.fn()
+      };
+      scene.time = { delayedCall: vi.fn() };
+      scene.textures = { exists: vi.fn().mockReturnValue(false) };
+
+      scene.preload();
+      errorHandler({ type: 'image', key: PAINTING_PLACEHOLDER_KEY });
+
+      // A painting load failure is NON-fatal: no scene-level error, no error message,
+      // and the failed key is recorded for the per-key placeholder fallback.
+      expect(scene._loadError).toBe(false);
+      expect(scene._errorMessage).toBeNull();
+      expect(scene._paintingLoadErrors.has(PAINTING_PLACEHOLDER_KEY)).toBe(true);
     });
 
     it('sets error message for tilemap load failure', () => {

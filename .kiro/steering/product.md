@@ -10,6 +10,7 @@ It is a gift first and a software project second. It is a single-purpose, single
 
 - **Explore the gallery** — move left/right and up/down across the floor with arrow keys or WASD. The player can walk in front of or behind benches, props, and building pieces via dynamic Y-sorting.
 - **Discover memories** — invisible interaction zones sit in front of canvases, each spanning the full width of a framed canvas. Standing on one shows a floating `[E]` prompt; pressing `E` activates it.
+- **See the memory on the wall** — every framed canvas displays a pixel-art painting for its memory, so a memory is represented both by its floor zone and by the art hanging in its frame. Paintings are purely visual (no interaction, no collision).
 - **Read and reflect** — an activated hotspot opens a dialogue box (paged sentimental text) and/or an image viewer (a high-res photo). Game input freezes while an overlay is open and resumes on dismiss.
 
 ## Design priorities
@@ -24,6 +25,8 @@ It is a gift first and a software project second. It is a single-purpose, single
 Memories are authored in a static manifest (`src/data/memories.js`, `MEMORIES`), keyed by contiguous index `0 .. N-1`. Each entry carries:
 - `text` — an array of dialogue pages (sentimental letter content)
 - `imageUrl` — optional link to the high-res photo (`null` if none)
+
+Each memory also has a painting, authored in a parallel static source (`src/data/paintings.js`, `PAINTINGS`), keyed by the same `Memory_Index`. Entries start as a shared placeholder; real pixel art is swapped in later by editing the source's references. A frame with no authored art (or a "future memory") shows the placeholder.
 
 The gallery is a bounded, procedurally-stitched "infinite hallway": the authored count `N` sets how far it extends. Interaction zones beyond the authored memories resolve to a single "future memory" placeholder page rather than showing nothing. A zone always opens an overlay (authored or future) and freezes the player while open.
 
