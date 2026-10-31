@@ -44,9 +44,15 @@ Memories are authored in a static manifest, `Front-end/src/data/memories.js` (`M
 | `text`     | yes      | Array of dialogue pages (the letter content)       |
 | `imageUrl` | no       | Link to the high-res photo (`null` if none)        |
 
-Wall paintings are authored in a parallel static source, `Front-end/src/data/paintings.js` (`PAINTINGS`), keyed by the same `Memory_Index`. Each entry names the texture for that memory's frame; entries start as a shared placeholder and are swapped for real pixel art later by editing the references (plus adding the asset and loading it in `preload()`), with no other code change.
+Wall paintings are authored in a parallel static source, `Front-end/src/data/paintings.js` (`PAINTINGS`), keyed by the same `Memory_Index`. Each entry names the texture for that memory's frame and its image URL (both derived from the index), loaded in `preload()`.
+
+**Media lives outside the bundle.** The dialogue text is small and ships in `memories.js`, but the heavy real photos and the pixel paintings are kept in the git-ignored `Memories/` folder and referenced by URL. Every media path is built from a single `MEDIA_BASE_URL` (`Front-end/src/data/mediaBase.js`) — `<base>/photos/NN.jpg` and `<base>/paintings/NN.png` — so pointing the app at a new location (local dev vs. the deployed S3 bucket) is a one-line change. Add or remove a memory by editing `memories.js` / `paintings.js` and dropping the matching files in `Memories/`; the hallway resizes automatically to the authored count `N`.
 
 The gallery is a bounded "infinite hallway": the authored count `N` sets how far it extends (`finalSegmentIndex = N ≥ 1 ? floor((N-1)/6) : 0`). The Tiled maps hold only object *positions/sizes* on a type-aware `Object Layer 1` — `memory_zone` objects become interaction zones (resolved at runtime to a manifest entry, or a single "future memory" placeholder page past the authored memories) and `painting` objects become the wall art; zone indexing ignores paintings, so adding art never shifts a memory. The player start is a `player_spawn` object in the spawn object layer, with an in-bounds floor fallback.
+
+### Overlays: reading a memory
+
+Activating a hotspot opens the memory's photo (centered, sized to roughly the map's height so the dialogue stays readable beneath it) and pages of dialogue. The photo stays on screen the whole time you page through the letter with `Space`; the final `Space` (or `Esc`) closes both together. The photo does not dim the dialogue box.
 
 ---
 
@@ -59,13 +65,16 @@ Memories_Museum/
 │   │   └── assets/            # Pixel assets only (tiny footprint)
 │   │       ├── maps/          # Exported Tiled .json maps
 │   │       ├── tilesets/      # 16-bit environment tiles (.png)
-│   │       └── sprites/       # 4-way character walking sheets
+│   │       ├── sprites/       # 4-way character walking sheets
+│   │       └── photos/        # bundled placeholder painting texture
 │   └── src/
 │       ├── components/        # React components (GameCanvas, DialogueBox, ImageViewer)
-│       ├── data/             # memories.js — static MEMORIES manifest
+│       ├── data/             # memories.js (MEMORIES), paintings.js (PAINTINGS), mediaBase.js (MEDIA_BASE_URL)
 │       ├── phaser/            # Phaser scene, controllers, segment/interaction subsystems, EventBus bridge
 │       └── App.jsx            # Coordinates React and Phaser state
 │
+├── Memories/                  # Private content (git-ignored): real photos, pixel paintings, dialogue
+│                              # Uploaded to S3 beside the app; symlinked into Front-end/public/ for local dev
 └── Tile_Creator/              # Python tool that compiles tileset PNGs from a JSON config
 ```
 
@@ -77,6 +86,15 @@ Memories_Museum/
 1. Navigate to the client directory: `cd Front-end`
 2. Install npm packages: `npm install`
 3. Start the hot-reloading dev server: `npm run dev`
+
+### Previewing the private media locally
+`MEDIA_BASE_URL` defaults to `/Memories`, but Vite only serves files under `Front-end/public/`. To see the real photos and paintings during `npm run dev`, create a local, git-ignored symlink from `public/` to the `Memories/` folder (one time, from the repo root):
+
+```bash
+ln -s ../../Memories Front-end/public/Memories
+```
+
+This is a local convenience only — it is not committed and plays no part in deployment (on S3 the real `Memories/` folder is uploaded beside the app and `MEDIA_BASE_URL` points at it).
 
 ### Tileset tooling (optional)
 From `Tile_Creator/`, run `python tile_builder.py` to regenerate the tileset PNG from `museum_tiles_config.json`.

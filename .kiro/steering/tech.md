@@ -14,7 +14,7 @@
 - **Tile_Creator/tile_builder.py** — a Pillow (PIL) based CLI that compiles a JSON tile/palette config (`museum_tiles_config.json`) into a master tileset PNG under `Tile_Creator/output/`. Default sheet width is 8 columns at 16px tiles; rows are derived from tile count.
 
 ### Backend
-- **None.** The game is fully self-contained and static — there is no server. All content is authored directly in the app as static ES modules (`src/data/memories.js`, the `MEMORIES` manifest; `src/data/paintings.js`, the `PAINTINGS` wall-art source) and read at runtime by the segment/interaction subsystems. Do not add a backend/API without an explicit decision to change this; the project was intentionally scoped down to a static site.
+- **None.** The game is fully self-contained and static — there is no server. All content is authored directly in the app as static ES modules (`src/data/memories.js`, the `MEMORIES` manifest; `src/data/paintings.js`, the `PAINTINGS` wall-art source) and read at runtime by the segment/interaction subsystems. Heavy media (photos + painting images) is NOT bundled: it lives in the git-ignored `Memories/` folder and is referenced by URL built from `MEDIA_BASE_URL` (`src/data/mediaBase.js`), deployed beside the app in the same S3 bucket. Do not add a backend/API without an explicit decision to change this; the project was intentionally scoped down to a static site. (The one deliberately-scoped exception under consideration — a tiny auth function to serve the photos privately — is documented in `docs/Private_Media_Deployment.md`.)
 
 ### Hosting (target)
 - **Static hosting** such as Amazon S3 + CloudFront. The build output is a static site. Heavy media (photos/audio) can live in a separate bucket/CDN and be referenced by URL.
@@ -30,6 +30,8 @@ Flow:
 4. On dismiss, React emits `dialogue-dismissed` / `image-dismissed`; `GameScene` unfreezes the player and unlocks interaction.
 
 When adding cross-boundary behavior, extend this event pattern rather than reaching into Phaser objects from React (or vice versa).
+
+**Overlay coexistence (App.jsx).** When a memory has both text and a photo, both overlays show at once and the photo stays up the whole time the player pages through the dialogue. While the dialogue is open it owns the keyboard (`Space` pages; final `Space`/`Esc` dismisses), and dismissing the dialogue also closes the photo — `ImageViewer` only self-handles keys when it is shown alone (`keyboardActive`). The photo is sized to roughly the map height and does not dim the dialogue box (no scrim), so the letter stays readable beneath it.
 
 ## Key engine conventions
 

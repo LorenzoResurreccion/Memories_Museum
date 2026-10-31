@@ -8,13 +8,25 @@
   align-items: center;
   justify-content: center;
   z-index: 200;
-  background-color: rgba(0, 0, 0, 0.5);
+  /* No dim scrim: the photo sits above the scene but must NOT darken the dialogue box
+     (which reads over the game while the photo stays visible). The full-screen layer is
+     click-through so it never swallows input meant for the canvas/dialogue; only the
+     frame itself (and its close button) is interactive. */
+  pointer-events: none;
 }
 
 .image-viewer-frame {
   position: relative;
-  max-width: 70%;
-  max-height: 70%;
+  pointer-events: auto;
+  /* Match the photo's height to the rendered map/canvas height (map 240px × 2× zoom =
+     480px) so the photo spans top-to-bottom of the map and is centered left/right. The
+     dialogue box sits below the map, so a map-height photo never covers the text. Width
+     follows the image's aspect ratio (capped to the viewport) so portrait/landscape
+     photos both stay centered rather than filling the screen. Sized a bit under the
+     full 480px map height so there's a small margin top/bottom (close, not edge-to-edge). */
+  height: 420px;
+  max-height: 100vh;
+  max-width: 95vw;
   border: 4px solid #fff;
   border-image: repeating-linear-gradient(
     45deg,
@@ -67,8 +79,14 @@
 }
 
 .image-viewer-frame img {
+  /* Fill the frame's (map-matched) height; width follows the aspect ratio so the photo
+     is centered left/right and never stretched. */
+  height: 100%;
+  width: auto;
   max-width: 100%;
-  max-height: 100%;
+  object-fit: contain;
   display: block;
-  image-rendering: pixelated;
+  /* These are real high-res photos (not pixel art), so use smooth scaling rather than
+     nearest-neighbor — `pixelated` would make a downscaled photo look crunchy. */
+  image-rendering: auto;
 }

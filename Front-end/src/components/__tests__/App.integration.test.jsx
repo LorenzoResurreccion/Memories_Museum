@@ -253,6 +253,58 @@ describe('Integration: Phaser–React communication loop', () => {
       EventBus.off('image-dismissed', imageDismissSpy);
     });
 
+    it('keeps the photo visible while paging through a multi-page dialogue, then closes both on the final Space', () => {
+      const dialogueDismissSpy = vi.fn();
+      const imageDismissSpy = vi.fn();
+      EventBus.on('dialogue-dismissed', dialogueDismissSpy);
+      EventBus.on('image-dismissed', imageDismissSpy);
+
+      render(<App />);
+
+      act(() => {
+        EventBus.emit('hotspot-activated', {
+          id: 'photo_memory_multi',
+          text: ['Page one.', 'Page two.', 'Page three.'],
+          imageUrl: 'https://example.com/photo-multi.png',
+        });
+      });
+
+      // Both visible from the start.
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' }).textContent).toContain('Page one.');
+      expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).not.toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      // Space advances the dialogue AND the photo stays up (image not dismissed).
+      act(() => {
+        fireEvent.keyDown(window, { key: ' ' });
+      });
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' }).textContent).toContain('Page two.');
+      expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).not.toBeNull();
+      expect(imageDismissSpy).not.toHaveBeenCalled();
+
+      act(() => {
+        fireEvent.keyDown(window, { key: ' ' });
+      });
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' }).textContent).toContain('Page three.');
+      expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).not.toBeNull();
+      expect(imageDismissSpy).not.toHaveBeenCalled();
+
+      // Final-page Space dismisses the dialogue, which closes the photo with it.
+      act(() => {
+        fireEvent.keyDown(window, { key: ' ' });
+      });
+      expect(dialogueDismissSpy).toHaveBeenCalledTimes(1);
+      expect(imageDismissSpy).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('dialog', { name: 'Dialogue' })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Image Viewer' })).toBeNull();
+
+      EventBus.off('dialogue-dismissed', dialogueDismissSpy);
+      EventBus.off('image-dismissed', imageDismissSpy);
+    });
+
     it('Space dismisses both dialogue and image simultaneously when both are visible; Enter does nothing', () => {
       const dialogueDismissSpy = vi.fn();
       const imageDismissSpy = vi.fn();

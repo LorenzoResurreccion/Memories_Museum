@@ -1,15 +1,19 @@
 /**
  * memories.js — the static Memories_Manifest for the Infinite Hallway.
  *
- * This is a pure, static ES module: it performs NO network access and NO fetch.
- * The manifest is imported directly by the segment-build / memory-resolution
- * logic and read at runtime (Requirement 12.8 — static in-app content, no
- * backend).
+ * This is a pure, static ES module: it performs NO network access and NO fetch. The
+ * dialogue `text` is bundled (it is tiny); the heavy `imageUrl` photos are NOT bundled —
+ * they are referenced by URL from the `Memories/` folder via `photoUrl()` (see
+ * `mediaBase.js`), served from the same location as the app. The manifest is imported
+ * directly by the segment-build / memory-resolution logic and read at runtime
+ * (Requirement 12.8 — static in-app content, no backend).
  *
  * @typedef {object} MemoryEntry
  * @property {string[]} text       dialogue pages (one string per page)
  * @property {string|null} imageUrl  URL to the high-res photo, or null
  */
+
+import { photoUrl } from './mediaBase.js';
 
 /**
  * MEMORIES — the Memories_Manifest.
@@ -17,52 +21,111 @@
  * A plain object keyed by Memory_Index (integer), holding exactly N authored
  * MemoryEntry values at contiguous indices `0 .. N-1` (no gaps). The number of
  * entries, N, is the Authored_Memory_Count and drives the hallway's bound:
- * `finalSegmentIndex = N >= 1 ? Math.floor((N - 1) / 6) : 0` (Requirement 13.2).
+ * `finalSegmentIndex = N >= 1 ? Math.floor((N - 1) / 6) : 0` (Requirement 13.2). N is
+ * read at runtime (`Object.keys(MEMORIES).length`), so adding or removing a memory
+ * automatically resizes the hallway — keep the indices contiguous `0 .. N-1`.
  *
- * NOTE: These are PLACEHOLDER entries. This is a personal gift project, so the
- * real sentimental letters and photos are intentionally NOT authored here — do
- * not invent intimate copy. Replace these generic placeholders with the real
- * authored `text` pages and `imageUrl` values when the content is ready. Heavy
- * media (photos) is referenced by URL later (staged in the git-ignored
- * `Memories/` folder), which is why `imageUrl` is `null` for every placeholder.
- *
- * Keep indices contiguous `0 .. N-1`: adding or removing an entry changes N and
- * therefore the number of authored zones and `finalSegmentIndex`.
+ * `imageUrl` is built from `photoUrl(index)` so every photo path derives from the single
+ * `MEDIA_BASE_URL` (see `mediaBase.js`); the heavy photos live in `Memories/photos/`,
+ * never in the bundle.
  *
  * @type {Record<number, MemoryEntry>}
  */
 export const MEMORIES = {
   0: {
-    text: ['Memory 0 — placeholder page 1.', 'Memory 0 — placeholder page 2.'],
-    imageUrl: null,
+    text: [
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+    ],
+    imageUrl: photoUrl(0),
   },
   1: {
-    text: ['Memory 1 — placeholder page 1.', 'Memory 1 — placeholder page 2.'],
-    imageUrl: null,
+    text: [
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+    ],
+    imageUrl: photoUrl(1),
   },
   2: {
-    text: ['Memory 2 — placeholder page 1.', 'Memory 2 — placeholder page 2.'],
-    imageUrl: null,
+    text: [
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+    ],
+    imageUrl: photoUrl(2),
   },
   3: {
-    text: ['Memory 3 — placeholder page 1.', 'Memory 3 — placeholder page 2.'],
-    imageUrl: null,
+    text: [
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+    ],
+    imageUrl: photoUrl(3),
   },
   4: {
-    text: ['Memory 4 — placeholder page 1.', 'Memory 4 — placeholder page 2.'],
-    imageUrl: null,
+    text: [
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+    ],
+    imageUrl: photoUrl(4),
   },
   5: {
-    text: ['Memory 5 — placeholder page 1.', 'Memory 5 — placeholder page 2.'],
-    imageUrl: null,
+    text: [
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+    ],
+    imageUrl: photoUrl(5),
   },
   6: {
-    text: ['Memory 6 — placeholder page 1.', 'Memory 6 — placeholder page 2.'],
-    imageUrl: null,
-  },
-  7: {
-    text: ['Memory 7 — placeholder page 1.', 'Memory 7 — placeholder page 2.'],
-    imageUrl: null,
+    text: [
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+      '[letter removed]',
+    ],
+    imageUrl: photoUrl(6),
   },
 };
 

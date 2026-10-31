@@ -306,9 +306,18 @@ export default class GameScene extends Scene {
     // texture is handled LOCALLY by the listener above (a per-key "missing" marker) and
     // MUST NOT set the scene-level `_loadError` or halt the scene (Req 5.4).
     //
-    // Future: for each authored PAINTINGS entry with a url/local asset, load its texture
-    // under the entry's `key` here — no other code change is needed (Req 5.3).
     this.load.image(PAINTING_PLACEHOLDER_KEY, 'assets/photos/placeholder.png');
+
+    // Load each authored painting texture under its own key, from its `url` (served from
+    // the `Memories/` folder, not bundled). Keys/urls both derive from the Memory_Index
+    // in `paintings.js`, so this list stays in sync with PAINTINGS automatically. A
+    // `loaderror` on any of these is NON-fatal (handled locally above): the painting
+    // falls back to the placeholder and the scene is never halted (Req 5.2, 5.4).
+    for (const entry of Object.values(PAINTINGS)) {
+      if (entry && entry.key && entry.url && entry.key !== PAINTING_PLACEHOLDER_KEY) {
+        this.load.image(entry.key, entry.url);
+      }
+    }
 
     // Start a 10-second timeout for player sprite loading.
     // Textures are not cached until preload completes, so we use load.on('complete')

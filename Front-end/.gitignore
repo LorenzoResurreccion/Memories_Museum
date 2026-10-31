@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Local-only dev symlink so Vite can serve the private Memories/ media during
+# `npm run dev` (MEDIA_BASE_URL defaults to /Memories). Never commit/deploy it —
+# on S3 the real Memories/ folder is uploaded alongside the app instead.
+public/Memories
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

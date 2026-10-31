@@ -26,7 +26,11 @@ Memories are authored in a static manifest (`src/data/memories.js`, `MEMORIES`),
 - `text` — an array of dialogue pages (sentimental letter content)
 - `imageUrl` — optional link to the high-res photo (`null` if none)
 
-Each memory also has a painting, authored in a parallel static source (`src/data/paintings.js`, `PAINTINGS`), keyed by the same `Memory_Index`. Entries start as a shared placeholder; real pixel art is swapped in later by editing the source's references. A frame with no authored art (or a "future memory") shows the placeholder.
+Each memory also has a painting, authored in a parallel static source (`src/data/paintings.js`, `PAINTINGS`), keyed by the same `Memory_Index`. A frame with no authored art (or a "future memory") shows a placeholder.
+
+The real photos and pixel paintings are the recipient's actual content and are kept private — they live in the git-ignored `Memories/` folder (not the repo, not the bundle) and are served by URL from the same place as the app. Only the small dialogue text ships in the manifest. Adding or removing a memory is just editing the two manifests and dropping the files in `Memories/`; the hallway resizes itself to the authored count.
+
+When a memory opens, the photo appears centered (about the height of the map) and stays visible while the recipient reads through the letter page by page; finishing the letter closes the photo with it. The photo never dims or covers the text.
 
 The gallery is a bounded, procedurally-stitched "infinite hallway": the authored count `N` sets how far it extends. Interaction zones beyond the authored memories resolve to a single "future memory" placeholder page rather than showing nothing. A zone always opens an overlay (authored or future) and freezes the player while open.
 

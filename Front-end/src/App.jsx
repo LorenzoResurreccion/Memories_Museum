@@ -63,14 +63,17 @@ function App() {
     setDialoguePages(null);
     setCurrentPageIndex(0);
 
-    // If no image is showing, fully clear overlay state
+    // The photo stays up for the whole time the dialogue is open and closes WITH it:
+    // dismissing the dialogue also dismisses any accompanying image, so paging to the
+    // end (or Esc) closes both together and the overlay fully clears.
     setImageUrl((currentImage) => {
-      if (!currentImage) {
-        setOverlayActive(false);
-        overlayActiveRef.current = false;
+      if (currentImage) {
+        EventBus.emit('image-dismissed', {});
       }
-      return currentImage;
+      return null;
     });
+    setOverlayActive(false);
+    overlayActiveRef.current = false;
   }, []);
 
   const handleImageDismiss = useCallback(() => {
@@ -104,6 +107,7 @@ function App() {
         imageUrl={imageUrl}
         visible={showImage}
         onDismiss={handleImageDismiss}
+        keyboardActive={!showDialogue}
       />
     </div>
   );
