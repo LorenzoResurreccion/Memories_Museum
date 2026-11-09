@@ -22,7 +22,7 @@ Front-end/
 │   └── assets/                # pixel assets only — tiny footprint
 │       ├── maps/              # Tiled-exported .json maps
 │       ├── tilesets/          # 16px tileset .png
-│       ├── sprites/           # character walk sheets (16×32 frames)
+│       ├── sprites/           # character walk sheets (32×32 frames, 4×4)
 │       └── photos/            # bundled placeholder painting texture (heavy media stays external)
 └── src/
     ├── main.jsx               # React entry

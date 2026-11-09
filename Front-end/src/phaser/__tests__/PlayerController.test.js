@@ -357,12 +357,15 @@ describe('PlayerController', () => {
       expect(sprite.anims.play).toHaveBeenCalledWith('player-idle-left', true);
     });
 
-    it('creates walk animations at 8fps', () => {
+    it('creates walk animations at the controller\'s configured frame rate', () => {
+      // Assert against the controller's own tunable value (not a hardcoded number) so
+      // adjusting the walk-cycle speed doesn't require touching this test.
       const walkCalls = scene.anims.create.mock.calls.filter(
         call => call[0].key.includes('walk')
       );
+      expect(walkCalls.length).toBeGreaterThan(0);
       for (const call of walkCalls) {
-        expect(call[0].frameRate).toBe(8);
+        expect(call[0].frameRate).toBe(controller._animFrameRate);
       }
     });
 

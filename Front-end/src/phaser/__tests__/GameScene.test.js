@@ -215,8 +215,8 @@ describe('GameScene', () => {
       // Should load player spritesheet
       expect(spritesheetMock).toHaveBeenCalledWith(
         'player',
-        'assets/sprites/Renzo_Sprite.png',
-        { frameWidth: 16, frameHeight: 32 }
+        'assets/sprites/Lorenzo_Sprite.png',
+        { frameWidth: 32, frameHeight: 32 }
       );
 
       // Should start a 10s timeout timer

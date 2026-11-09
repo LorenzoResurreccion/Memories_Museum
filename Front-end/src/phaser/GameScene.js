@@ -29,6 +29,13 @@ const ZONE_WIDTH_PX = 3 * 16;
 const ZONE_HEIGHT_PX = 3 * 16;
 
 /**
+ * Player walk speed in px/s. Lower = a slower, more leisurely walk down the hallway.
+ * Tune this together with the walk-cycle rate (`_animFrameRate` in PlayerController) so
+ * the legs keep pace with the ground and the sprite doesn't look like it's gliding.
+ */
+const PLAYER_SPEED_PX_PER_SEC = 80;
+
+/**
  * The set of texture keys that belong to wall paintings (the placeholder plus every
  * key referenced by the PAINTINGS source). A `loaderror` on any of these is handled
  * locally (non-fatal) rather than flipping the scene-level `_loadError` (Req 5.4).
@@ -294,9 +301,9 @@ export default class GameScene extends Scene {
       frameHeight: 16
     });
 
-    // Load player spritesheet (16×32 frames)
-    this.load.spritesheet('player', 'assets/sprites/Renzo_Sprite.png', {
-      frameWidth: 16,
+    // Load player spritesheet (32×32 frames, 4 columns × 4 rows = 128×128)
+    this.load.spritesheet('player', 'assets/sprites/Lorenzo_Sprite.png', {
+      frameWidth: 32,
       frameHeight: 32
     });
 
@@ -447,7 +454,7 @@ export default class GameScene extends Scene {
     // Create the player as a physics sprite at the spawn point
     this.player = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, 'player', 0);
 
-    // Origin at the feet (bottom-center). For a tall 16x32 sprite this makes the
+    // Origin at the feet (bottom-center). For a 32x32 sprite this makes the
     // sort key (world Y) track where the character stands, so overlap with props
     // and building bases reads correctly. The physics body is realigned below.
     this.player.setOrigin(0.5, 1);
@@ -460,13 +467,14 @@ export default class GameScene extends Scene {
 
     // Realign the physics body to the character's feet. With a feet origin the
     // sprite's top-left is offset upward, so size the body to the lower portion
-    // (roughly the bottom 16px of the 16x32 frame) and offset it down. This keeps
-    // collisions grounded where the character actually stands.
+    // (the bottom 16px of the 32x32 frame) and offset it down. The frame is 32px wide
+    // but the body stays 16px, so offset X by 8 to center it under the character; this
+    // keeps collisions grounded where the character actually stands.
     if (typeof this.player.body.setSize === 'function') {
       this.player.body.setSize(16, 16);
     }
     if (typeof this.player.body.setOffset === 'function') {
-      this.player.body.setOffset(0, 16);
+      this.player.body.setOffset(8, 16);
     }
 
     // Enable world bounds collision on the player's physics body
@@ -558,7 +566,7 @@ export default class GameScene extends Scene {
     // --- PlayerController ---
 
     // Instantiate PlayerController (it creates animations internally)
-    this.playerController = new PlayerController(this, this.player, 120);
+    this.playerController = new PlayerController(this, this.player, PLAYER_SPEED_PX_PER_SEC);
 
     // Apply the two-sided horizontal clamp. Both bounds are deterministic at create()
     // time, so set them now (Req 5.3, 13.3).

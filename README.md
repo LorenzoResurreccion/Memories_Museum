@@ -65,7 +65,7 @@ Memories_Museum/
 │   │   └── assets/            # Pixel assets only (tiny footprint)
 │   │       ├── maps/          # Exported Tiled .json maps
 │   │       ├── tilesets/      # 16-bit environment tiles (.png)
-│   │       ├── sprites/       # 4-way character walking sheets
+│   │       ├── sprites/       # 4-way character walking sheets (32×32 frames, 4×4)
 │   │       └── photos/        # bundled placeholder painting texture
 │   └── src/
 │       ├── components/        # React components (GameCanvas, DialogueBox, ImageViewer)

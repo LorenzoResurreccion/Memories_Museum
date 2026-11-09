@@ -13,6 +13,14 @@
  *
  * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 5.3, 5.4, 13.3
  */
+
+/**
+ * Number of frames in each direction row of the player spritesheet (columns per row).
+ * The 32×32 sheet is 4 columns wide: neutral, step, neutral, step. Change this if the
+ * sheet's column count changes — frame index = row * FRAMES_PER_ROW + column.
+ */
+const FRAMES_PER_ROW = 4;
+
 export default class PlayerController {
   /**
    * @param {Phaser.Scene} scene - The scene this controller belongs to
@@ -38,7 +46,7 @@ export default class PlayerController {
     this._keyStack = [];
 
     /** @type {number} */
-    this._animFrameRate = 8;
+    this._animFrameRate = 4;
 
     /**
      * Left horizontal clamp bound (start-map floor left edge). Defaults to
@@ -135,8 +143,12 @@ export default class PlayerController {
 
   /**
    * Create walking and idle animations based on the player spritesheet layout.
-   * Row 0: Down, Row 1: Left, Row 2: Right, Row 3: Up
-   * 3 frames per row minimum (idle + 2 walk frames)
+   *
+   * Sheet layout (32×32 frames, 4 columns × 4 rows = 128×128):
+   *   Rows:    0 = Down, 1 = Left, 2 = Right, 3 = Up
+   *   Columns: 0 = neutral (idle), 1 = step, 2 = neutral, 3 = step
+   * Phaser numbers frames row-major, so frame = row * FRAMES_PER_ROW + column. Walking
+   * plays the whole row (neutral → step → neutral → step); idle holds column 0.
    */
   _createAnimations() {
     if (!this.scene.anims) return;
@@ -147,14 +159,15 @@ export default class PlayerController {
     directions.forEach((dir, rowIndex) => {
       const walkKey = `player-walk-${dir}`;
       const idleKey = `player-idle-${dir}`;
+      const rowStart = rowIndex * FRAMES_PER_ROW;
 
       // Only create if not already registered
       if (!this.scene.anims.exists(walkKey)) {
         this.scene.anims.create({
           key: walkKey,
           frames: this.scene.anims.generateFrameNumbers(spriteKey, {
-            start: rowIndex * 3 + 1,
-            end: rowIndex * 3 + 2
+            start: rowStart,
+            end: rowStart + FRAMES_PER_ROW - 1
           }),
           frameRate: this._animFrameRate,
           repeat: -1
@@ -164,7 +177,7 @@ export default class PlayerController {
       if (!this.scene.anims.exists(idleKey)) {
         this.scene.anims.create({
           key: idleKey,
-          frames: [{ key: spriteKey, frame: rowIndex * 3 }],
+          frames: [{ key: spriteKey, frame: rowStart }],
           frameRate: 1,
           repeat: 0
         });
