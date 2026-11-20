@@ -3,7 +3,7 @@
 ## Stack
 
 ### Frontend (built and shipped)
-- **Phaser 4** — game engine. Tilemap rendering, arcade physics, camera, player movement, Y-sort depth, interaction overlap zones, bounded procedural hallway segment generation, and flat wall-painting sprites hung inside each frame.
+- **Phaser 4** — game engine. Tilemap rendering, arcade physics, camera, player movement, a trailing follower companion, Y-sort depth, interaction overlap zones, bounded procedural hallway segment generation, and flat wall-painting sprites hung inside each frame.
 - **React 19** — UI layer rendered around and on top of the Phaser canvas. Owns the dialogue box and image viewer overlays.
 - **Vite 8** — dev server and bundler. React plugin uses the React Compiler (babel-plugin-react-compiler).
 - **Vitest 4** + **@testing-library/react** + **jsdom** — unit and component tests.
@@ -14,10 +14,10 @@
 - **Tile_Creator/tile_builder.py** — a Pillow (PIL) based CLI that compiles a JSON tile/palette config (`museum_tiles_config.json`) into a master tileset PNG under `Tile_Creator/output/`. Default sheet width is 8 columns at 16px tiles; rows are derived from tile count.
 
 ### Backend
-- **None.** The game is fully self-contained and static — there is no server. All content is authored directly in the app as static ES modules (`src/data/memories.js`, the `MEMORIES` manifest; `src/data/paintings.js`, the `PAINTINGS` wall-art source) and read at runtime by the segment/interaction subsystems. Heavy media (photos + painting images) is NOT bundled: it lives in the git-ignored `Memories/` folder and is referenced by URL built from `MEDIA_BASE_URL` (`src/data/mediaBase.js`), deployed beside the app in the same S3 bucket. Do not add a backend/API without an explicit decision to change this; the project was intentionally scoped down to a static site. (The one deliberately-scoped exception under consideration — a tiny auth function to serve the photos privately — is documented in `docs/Private_Media_Deployment.md`.)
+- **None.** The game is a static site — there is no server. ALL personal content (dialogue letters, photos, painting images) lives in the git-ignored `Memories/` folder, deployed beside the app in the same S3 bucket and referenced by URL built from `MEDIA_BASE_URL` (`src/data/mediaBase.js`). None of it is in git or the JS bundle. At startup `main.jsx` awaits `loadMemories()` (`src/data/loadMemories.js`), which fetches `<base>/dialogue/00.md, 01.md, …` in parallel batches; N is the first missing index (non-2xx, network error, or an HTML fallback page all count as missing; it never rejects, and total failure gives N = 0). It fills the `MEMORIES` manifest in place (`setMemories`) and rebuilds `PAINTINGS` from it (`syncPaintings`), then React and Phaser start and read both synchronously as before. Never put letter text back into the code, tests, or docs; tests seed stand-in entries with `setMemories()`. Do not add a backend/API without an explicit decision to change this; the project was intentionally scoped down to a static site. (The one deliberately-scoped exception under consideration — a tiny auth function to serve the photos privately — is documented in `docs/Private_Media_Deployment.md`.)
 
 ### Hosting (target)
-- **Static hosting** such as Amazon S3 + CloudFront. The build output is a static site. Heavy media (photos/audio) can live in a separate bucket/CDN and be referenced by URL.
+- **Static hosting** such as Amazon S3 + CloudFront. The build output is a static site; the `Memories/` folder is uploaded as-is beside it. Editing or adding a letter is an upload, not a rebuild.
 
 ## Architecture: the Phaser–React bridge
 
@@ -52,6 +52,12 @@ The gallery is a bounded, procedurally-stitched hallway rather than a single fix
 - **`InteractionManager`** owns the `E` key edge detection, registers/releases each segment's zones, reports overlap (drives `PromptLabel`), and emits `hotspot-activated`. Paintings emit no events.
 - **`PromptLabel`** is the floating `[E]` prompt pinned above the player, shown iff the player overlaps a zone and no overlay is open.
 
+## Follower companion (Kelly)
+
+- **`FollowerController`** drives Kelly (`Kelly_Sprite.png`, same 32×32 4×4 layout as the player), a purely visual companion: `add.sprite` with no physics body, no colliders, never passed to `InteractionManager`, and it emits no events. It subscribes to `hotspot-activated` (freeze) and `dialogue-dismissed` / `image-dismissed` (unfreeze), and `destroy()` on scene shutdown removes exactly those handlers.
+- **Following mode** replays the path the player actually walked (`followerTrail.js`, pure, no Phaser) at `FOLLOW_DISTANCE_PX` (24) behind, capped at the player's speed; a player jump > 64 px resets the trail. **Settling mode**: when the player stops with Kelly closer than 16 px, she walks once to a rest spot (behind, front, above, below) chosen by `followerCollision.js` (pure) against a one-time snapshot of the static collision boxes; if none is valid she holds still until the player moves.
+- Kelly's sprite position is always whole-pixel, clamped to the player's hallway bounds, and her depth is set after the Y-sort pass via `resolveFollowerDepth` (stable tie with the player). A missing `follower` texture is non-fatal: the scene runs without her.
+
 ## Commands
 
 Run frontend commands from `Front-end/`:
@@ -76,4 +82,4 @@ python tile_builder.py   # compile the tileset PNG from the JSON config
 - Prefer `npm run test` (single run) over watch mode. Do not start long-running dev servers or watchers on the user's behalf — hand the user the command to run.
 - Match existing style: ES modules, functional React components with hooks, class-based Phaser scene/manager modules with JSDoc.
 - When adding features or fixing bugs, add both example-based and property-based (fast-check) tests to match the existing test suite's style, and run the suite before declaring done.
-- Keep heavy media out of the game bundle; reference it by URL.
+- Keep heavy media out of the game bundle; reference it by URL. Keep personal content (letters, photos, paintings) out of git entirely — it belongs in `Memories/`.

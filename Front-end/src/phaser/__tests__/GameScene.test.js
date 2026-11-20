@@ -85,10 +85,20 @@ vi.mock('../PromptLabel.js', () => ({
 
 import GameScene from '../GameScene.js';
 import eventBus from '../EventBus.js';
-import { PAINTING_PLACEHOLDER_KEY } from '../../data/paintings.js';
+import { PAINTING_PLACEHOLDER_KEY, syncPaintings } from '../../data/paintings.js';
+import { setMemories } from '../../data/memories.js';
 
 /** Number of authored memories in the manifest (drives finalSegmentIndex / maxX). */
 const AUTHORED_MEMORY_COUNT = 8;
+
+// The real letters are fetched at runtime and never present in tests, so seed the
+// shared manifest (and the PAINTINGS derived from it) with stand-in entries.
+setMemories(
+  Object.fromEntries(
+    Array.from({ length: AUTHORED_MEMORY_COUNT }, (_, i) => [i, { text: [`memory ${i}`], imageUrl: null }]),
+  ),
+);
+syncPaintings();
 /** Segment width: 58 tiles * 16px. */
 const SEGMENT_WIDTH_PX = 58 * 16;
 

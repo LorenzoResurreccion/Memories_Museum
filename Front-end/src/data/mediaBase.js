@@ -10,6 +10,7 @@
  * Layout under the base (see `Memories/README.md`):
  *   <base>/photos/NN.jpg     full-res photos shown in the ImageViewer overlay
  *   <base>/paintings/NN.png  pixel art hung inside each frame (loaded as a Phaser texture)
+ *   <base>/dialogue/NN.md    letter pages, fetched at startup (see loadMemories.js)
  *
  * ## Dev vs deploy
  *
@@ -49,4 +50,14 @@ export function paintingUrl(index) {
  */
 export function photoUrl(index) {
   return `${MEDIA_BASE_URL}/photos/${String(index).padStart(2, '0')}.jpg`;
+}
+
+/**
+ * Build the URL for a dialogue letter by Memory_Index (zero-padded: `00.md`).
+ * Fetched at startup by `loadMemories()`; never bundled.
+ * @param {number} index
+ * @returns {string}
+ */
+export function dialogueUrl(index) {
+  return `${MEDIA_BASE_URL}/dialogue/${String(index).padStart(2, '0')}.md`;
 }

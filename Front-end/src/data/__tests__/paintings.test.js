@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { PAINTINGS, PAINTING_PLACEHOLDER_KEY } from '../paintings.js';
+import { describe, it, expect, afterEach } from 'vitest';
+import { PAINTINGS, PAINTING_PLACEHOLDER_KEY, syncPaintings } from '../paintings.js';
+import { setMemories } from '../memories.js';
+import { paintingUrl } from '../mediaBase.js';
 
 /**
  * Example-based tests for the static Painting_Image_Source (`src/data/paintings.js`).
@@ -33,8 +35,28 @@ describe('paintings source', () => {
   });
 
   describe('PAINTINGS entries', () => {
-    it('contains at least one entry', () => {
-      expect(Object.keys(PAINTINGS).length).toBeGreaterThanOrEqual(1);
+    afterEach(() => {
+      setMemories({});
+      syncPaintings();
+    });
+
+    it('is derived from MEMORIES: one painting_NN entry per memory', () => {
+      setMemories({
+        0: { text: ['a'], imageUrl: null },
+        1: { text: ['b'], imageUrl: null },
+        2: { text: ['c'], imageUrl: null },
+      });
+      syncPaintings();
+      expect(Object.keys(PAINTINGS)).toEqual(['0', '1', '2']);
+      expect(PAINTINGS[1]).toEqual({ key: 'painting_01', url: paintingUrl(1) });
+    });
+
+    it('shrinks back when MEMORIES shrinks', () => {
+      setMemories({ 0: { text: ['a'], imageUrl: null }, 1: { text: ['b'], imageUrl: null } });
+      syncPaintings();
+      setMemories({ 0: { text: ['a'], imageUrl: null } });
+      syncPaintings();
+      expect(Object.keys(PAINTINGS)).toEqual(['0']);
     });
 
     it('is keyed by contiguous integers starting at 0 (0..N-1, no gaps)', () => {

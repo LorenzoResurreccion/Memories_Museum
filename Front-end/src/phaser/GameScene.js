@@ -1,9 +1,11 @@
 import { Scene } from 'phaser';
-import PlayerController from './PlayerController.js';
+import PlayerController, { WALK_FRAME_RATE } from './PlayerController.js';
 import CollisionBuilder from './CollisionBuilder.js';
 import SegmentManager from './SegmentManager.js';
 import InteractionManager from './InteractionManager.js';
 import PromptLabel from './PromptLabel.js';
+import FollowerController, { FOLLOWER_SPRITE_KEY } from './FollowerController.js';
+import { frameIndexFor, resolveFollowerDepth } from './followerTrail.js';
 import { assignZoneIndices, resolveZonePayload } from './memoryResolve.js';
 import {
   assignPaintingIndices,
@@ -36,17 +38,17 @@ const ZONE_HEIGHT_PX = 3 * 16;
 const PLAYER_SPEED_PX_PER_SEC = 80;
 
 /**
- * The set of texture keys that belong to wall paintings (the placeholder plus every
- * key referenced by the PAINTINGS source). A `loaderror` on any of these is handled
- * locally (non-fatal) rather than flipping the scene-level `_loadError` (Req 5.4).
- * @type {Set<string>}
+ * True when `key` is a wall-painting texture key: the placeholder or any key in the
+ * PAINTINGS source. Read live (not cached at import) because PAINTINGS is filled at
+ * startup by `loadMemories()`. A `loaderror` on any of these is handled locally
+ * (non-fatal) rather than flipping the scene-level `_loadError` (Req 5.4).
+ * @param {string} key
+ * @returns {boolean}
  */
-const PAINTING_TEXTURE_KEYS = new Set([
-  PAINTING_PLACEHOLDER_KEY,
-  ...Object.values(PAINTINGS)
-    .map((entry) => entry && entry.key)
-    .filter((key) => typeof key === 'string' && key.length > 0)
-]);
+function isPaintingTextureKey(key) {
+  if (key === PAINTING_PLACEHOLDER_KEY) return true;
+  return Object.values(PAINTINGS).some((entry) => entry && entry.key === key);
+}
 
 /**
  * Decode a Tiled GID into its frame index and orientation flags.
@@ -211,6 +213,19 @@ export default class GameScene extends Scene {
     this._playerSpriteError = false;
 
     /**
+     * The Follower companion controller; created in create() (task 8.2), null until then.
+     * @type {import('./FollowerController.js').default|null}
+     */
+    this.followerController = null;
+
+    /**
+     * True when the Follower spritesheet failed to load. NON-fatal: the scene simply
+     * runs without a Follower and never sets `_loadError`.
+     * @type {boolean}
+     */
+    this._followerSpriteError = false;
+
+    /**
      * Texture keys of painting images that failed to load. Painting load errors are
      * NON-fatal: a key is recorded here so `_createPaintingSprite` falls back to the
      * placeholder, and the scene-level `_loadError` is never set (Req 5.4). Always
@@ -249,6 +264,9 @@ export default class GameScene extends Scene {
   }
 
   preload() {
+    // The scene instance is reused across restart, so clear the per-run Follower flag.
+    this._followerSpriteError = false;
+
     // Track load errors. A failed tileset image names the missing tileset by key so the
     // on-canvas error is actionable (Req 1.7, 11.2). Player-sprite failures are handled
     // separately via the 10s timeout below rather than the global _loadError flag.
@@ -256,6 +274,13 @@ export default class GameScene extends Scene {
       if (fileObj.key === 'player') {
         // Don't set global _loadError for player sprite — handled separately with timeout
         this._playerSpriteError = true;
+      } else if (fileObj.key === FOLLOWER_SPRITE_KEY) {
+        // The Follower is optional: warn once, skip it, and never flip `_loadError`
+        // or `_errorMessage` so the rest of the scene runs normally.
+        if (!this._followerSpriteError) {
+          console.warn(`Follower sprite "${FOLLOWER_SPRITE_KEY}" failed to load; continuing without it`);
+        }
+        this._followerSpriteError = true;
       } else if (this._isPaintingTextureKey(fileObj.key)) {
         // Painting textures fail LOCALLY (Req 5.4): flip only a per-key "missing"
         // marker so `_createPaintingSprite` falls back to the placeholder. Never set
@@ -303,6 +328,12 @@ export default class GameScene extends Scene {
 
     // Load player spritesheet (32×32 frames, 4 columns × 4 rows = 128×128)
     this.load.spritesheet('player', 'assets/sprites/Lorenzo_Sprite.png', {
+      frameWidth: 32,
+      frameHeight: 32
+    });
+
+    // Load the Follower companion spritesheet (same 32×32, 4×4 layout as the player).
+    this.load.spritesheet(FOLLOWER_SPRITE_KEY, 'assets/sprites/Kelly_Sprite.png', {
       frameWidth: 32,
       frameHeight: 32
     });
@@ -577,12 +608,15 @@ export default class GameScene extends Scene {
     // Apply the vertical floor clamp so the player's feet stay on the walkable floor
     // band (the brown floor rows) and never step up onto the back wall. The band is
     // derived from the start-map floor layer; every segment shares the same row layout.
+    const band = this._computeFloorBand();
     if (typeof this.playerController.setVerticalBounds === 'function') {
-      const band = this._computeFloorBand();
       if (band) {
         this.playerController.setVerticalBounds(band.topY, band.bottomY);
       }
     }
+
+    // --- Follower companion (purely visual; skipped silently when unavailable) ---
+    this._createFollower(minX, maxX, band);
 
     // --- Interaction + prompt subsystems ---
 
@@ -636,6 +670,88 @@ export default class GameScene extends Scene {
       if (this.playerController) this.playerController.unfreeze();
       if (this.interactionManager) this.interactionManager.setLocked(false);
     });
+  }
+
+  /**
+   * Create the Follower companion at the Player's feet. Silently does nothing if the
+   * spritesheet failed to load, the texture is missing, or `add.sprite` is unavailable.
+   * The sprite has no physics body; no collider or overlap is registered.
+   *
+   * @param {number} minX - horizontal clamp lower bound (feet X)
+   * @param {number} maxX - horizontal clamp upper bound (feet X)
+   * @param {{topY:number, bottomY:number}|null} band - floor band for the vertical clamp
+   * @private
+   */
+  _createFollower(minX, maxX, band) {
+    if (this._followerSpriteError) return;
+    if (!this.textures || typeof this.textures.exists !== 'function') return;
+    if (!this.textures.exists(FOLLOWER_SPRITE_KEY)) return;
+    if (!this.add || typeof this.add.sprite !== 'function') return;
+    if (!this.player) return;
+
+    const facing =
+      typeof this.playerController?.getFacingDirection === 'function'
+        ? this.playerController.getFacingDirection()
+        : 'down';
+
+    const sprite = this.add.sprite(
+      Math.round(this.player.x),
+      Math.round(this.player.y),
+      FOLLOWER_SPRITE_KEY,
+      frameIndexFor(facing, 0)
+    );
+    if (typeof sprite.setOrigin === 'function') sprite.setOrigin(0.5, 1);
+    if (this.sortGroup && typeof this.sortGroup.add === 'function') {
+      this.sortGroup.add(sprite);
+    }
+
+    this.followerController = new FollowerController(this, sprite, eventBus, {
+      speed: PLAYER_SPEED_PX_PER_SEC,
+      frameRate: WALK_FRAME_RATE,
+      initialFacing: facing,
+      startPosition: { x: this.player.x, y: this.player.y },
+      getCollisionBoxes: () => this._getCollisionBoxes()
+    });
+    this.followerController.setBounds(minX, maxX);
+    if (band) {
+      this.followerController.setVerticalBounds(band.topY, band.bottomY);
+    }
+
+    if (this.events && typeof this.events.once === 'function') {
+      this.events.once('shutdown', this._onShutdown, this);
+    }
+  }
+
+  /**
+   * Snapshot the static collision bodies as plain rectangles. Read-only; children
+   * without a body are skipped.
+   *
+   * @returns {Array<{x:number,y:number,width:number,height:number}>}
+   * @private
+   */
+  _getCollisionBoxes() {
+    const group = this.collisionGroup;
+    if (!group || typeof group.getChildren !== 'function') return [];
+    const boxes = [];
+    for (const child of group.getChildren()) {
+      const body = child && child.body;
+      if (!body) continue;
+      boxes.push({ x: body.x, y: body.y, width: body.width, height: body.height });
+    }
+    return boxes;
+  }
+
+  /**
+   * Scene shutdown hook: destroy the Follower controller. Never throws.
+   * @private
+   */
+  _onShutdown() {
+    try {
+      if (this.followerController) this.followerController.destroy();
+    } catch {
+      // Teardown must not throw.
+    }
+    this.followerController = null;
   }
 
   /**
@@ -1018,7 +1134,7 @@ export default class GameScene extends Scene {
    * @private
    */
   _isPaintingTextureKey(key) {
-    return typeof key === 'string' && PAINTING_TEXTURE_KEYS.has(key);
+    return typeof key === 'string' && key.length > 0 && isPaintingTextureKey(key);
   }
 
   /**
@@ -1199,7 +1315,12 @@ export default class GameScene extends Scene {
     this.cameras.main.setBounds(left, 0, right - left, height);
   }
 
-  update() {
+  /**
+   * Per-frame update.
+   * @param {number} time - Current game time in ms.
+   * @param {number} delta - Milliseconds since the previous frame.
+   */
+  update(time, delta) {
     // Nothing to drive until the scene has built successfully (guards headless/error
     // states where create() bailed out before wiring the subsystems).
     // 1) Resolve player movement + the two-sided clamp.
@@ -1207,7 +1328,20 @@ export default class GameScene extends Scene {
       this.playerController.update(this.cursors, this.wasd);
     }
 
-    // 2) Generate / recycle hallway segments based on the player's world X. Segment
+    // 2) Drive the Follower. It runs right after the player so it sees this frame's
+    //    movement, and before segment generation, Y-sort, prompt and interaction.
+    //    An undefined delta makes the controller no-op via its input validation.
+    if (this.followerController && this.player) {
+      this.followerController.update(
+        this.player,
+        delta,
+        typeof this.playerController?.getFacingDirection === 'function'
+          ? this.playerController.getFacingDirection()
+          : 'down'
+      );
+    }
+
+    // 3) Generate / recycle hallway segments based on the player's world X. Segment
     //    generation is bounded and capped internally by SegmentManager.
     if (
       this.segmentManager &&
@@ -1217,7 +1351,7 @@ export default class GameScene extends Scene {
       this.segmentManager.update(this.player.x);
     }
 
-    // 3) Re-sort every dynamic object by its bottom edge each frame so the player
+    // 4) Re-sort every dynamic object by its bottom edge each frame so the player
     //    slides in front of or behind buildings and props as it moves. All sprites
     //    in the group use a feet origin, so their world Y is the sort key.
     if (this.sortGroup && typeof this.sortGroup.getChildren === 'function') {
@@ -1227,7 +1361,16 @@ export default class GameScene extends Scene {
       }
     }
 
-    // 4) Prompt follows the player and is visible iff the player overlaps an
+    // 4b) Follower depth override, applied AFTER the Y-sort loop so it wins: its feet
+    //     Y, nudged just behind the player on an exact tie.
+    if (this.followerController && this.followerController.sprite && this.player) {
+      const f = this.followerController.sprite;
+      if (typeof f.setDepth === 'function') {
+        f.setDepth(resolveFollowerDepth(f.y, this.player.y));
+      }
+    }
+
+    // 5) Prompt follows the player and is visible iff the player overlaps an
     //    interaction zone AND no overlay is open (Req 8.1, 8.3, 8.4).
     if (this.promptLabel && this.player) {
       if (typeof this.promptLabel.follow === 'function') {
@@ -1243,13 +1386,13 @@ export default class GameScene extends Scene {
       }
     }
 
-    // 5) Check interaction every frame (E-key edge detection is internal to the
+    // 6) Check interaction every frame (E-key edge detection is internal to the
     //    InteractionManager; it no-ops while locked / an overlay is open).
     if (this.interactionManager && typeof this.interactionManager.checkInteraction === 'function') {
       this.interactionManager.checkInteraction(this.player);
     }
 
-    // 6) Extend the camera right bound only when a strictly new segment generated this
+    // 7) Extend the camera right bound only when a strictly new segment generated this
     //    frame, capped at the final segment's right edge (Req 10.4, 13.4). On
     //    generation failure SegmentManager does not raise the count, so the bound is
     //    left unchanged.

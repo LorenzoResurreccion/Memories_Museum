@@ -4,7 +4,10 @@ import fc from 'fast-check';
 // Mock Phaser at module level since Canvas/WebGL isn't available in jsdom
 vi.mock('phaser', () => ({}));
 
-import PlayerController from '../PlayerController.js';
+import PlayerController, {
+  FRAMES_PER_ROW as EXPORTED_FRAMES_PER_ROW,
+  WALK_FRAME_RATE
+} from '../PlayerController.js';
 
 /**
  * Frame-layout tests for the 32×32 player spritesheet (128×128 = 4 columns × 4 rows).
@@ -87,5 +90,26 @@ describe('PlayerController — 32×32 sheet frame layout (4 columns per row)', (
       }),
       { numRuns: 100 }
     );
+  });
+});
+
+describe('PlayerController — shared animation constants (follower companion)', () => {
+  it('exports FRAMES_PER_ROW and WALK_FRAME_RATE, both 4', () => {
+    expect(EXPORTED_FRAMES_PER_ROW).toBe(4);
+    expect(WALK_FRAME_RATE).toBe(4);
+  });
+
+  it('initialises _animFrameRate from WALK_FRAME_RATE', () => {
+    const scene = createScene();
+    const sprite = { texture: { key: 'player' }, setVelocity: vi.fn(), anims: { play: vi.fn() } };
+    const controller = new PlayerController(scene, sprite, 120);
+    expect(controller._animFrameRate).toBe(WALK_FRAME_RATE);
+  });
+
+  it('registers every walk animation with frameRate WALK_FRAME_RATE', () => {
+    const anims = registeredAnimations();
+    for (const dir of DIRECTIONS) {
+      expect(anims[`player-walk-${dir}`].frameRate).toBe(WALK_FRAME_RATE);
+    }
   });
 });

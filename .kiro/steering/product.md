@@ -9,6 +9,7 @@ It is a gift first and a software project second. It is a single-purpose, single
 ## Core experience
 
 - **Explore the gallery** — move left/right and up/down across the floor with arrow keys or WASD. The player can walk in front of or behind benches, props, and building pieces via dynamic Y-sorting.
+- **Walk together** — Kelly, a companion sprite, follows a few steps behind along the path the player walked, steps aside to stand beside the player when they stop, and pauses while a memory is open. She is purely visual: no collision, no interaction.
 - **Discover memories** — invisible interaction zones sit in front of canvases, each spanning the full width of a framed canvas. Standing on one shows a floating `[E]` prompt; pressing `E` activates it.
 - **See the memory on the wall** — every framed canvas displays a pixel-art painting for its memory, so a memory is represented both by its floor zone and by the art hanging in its frame. Paintings are purely visual (no interaction, no collision).
 - **Read and reflect** — an activated hotspot opens a dialogue box (paged sentimental text) and/or an image viewer (a high-res photo). Game input freezes while an overlay is open and resumes on dismiss.
@@ -22,13 +23,12 @@ It is a gift first and a software project second. It is a single-purpose, single
 
 ## Content model
 
-Memories are authored in a static manifest (`src/data/memories.js`, `MEMORIES`), keyed by contiguous index `0 .. N-1`. Each entry carries:
-- `text` — an array of dialogue pages (sentimental letter content)
-- `imageUrl` — optional link to the high-res photo (`null` if none)
+Every memory is a set of files in the private, git-ignored `Memories/` folder, named by contiguous index `0 .. N-1`:
+- `dialogue/NN.md` — the letter, split into dialogue pages by lines containing only `---`
+- `photos/NN.jpg` — the high-res photo
+- `paintings/NN.png` — the pixel art in that memory's frame (a frame with no art, or a "future memory", shows a placeholder)
 
-Each memory also has a painting, authored in a parallel static source (`src/data/paintings.js`, `PAINTINGS`), keyed by the same `Memory_Index`. A frame with no authored art (or a "future memory") shows a placeholder.
-
-The real photos and pixel paintings are the recipient's actual content and are kept private — they live in the git-ignored `Memories/` folder (not the repo, not the bundle) and are served by URL from the same place as the app. Only the small dialogue text ships in the manifest. Adding or removing a memory is just editing the two manifests and dropping the files in `Memories/`; the hallway resizes itself to the authored count.
+The letters, photos and paintings are the recipient's actual content and are kept private: none of it is in the repo or the bundle. The `Memories/` folder is uploaded as-is beside the app and the game fetches it by URL, loading the letters at startup into the `MEMORIES` manifest. Adding a memory is just dropping its files in `Memories/` and uploading; the hallway resizes itself to the number of letters, with no code change.
 
 When a memory opens, the photo appears centered (about the height of the map) and stays visible while the recipient reads through the letter page by page; finishing the letter closes the photo with it. The photo never dims or covers the text.
 

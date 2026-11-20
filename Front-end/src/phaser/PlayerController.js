@@ -19,7 +19,14 @@
  * The 32×32 sheet is 4 columns wide: neutral, step, neutral, step. Change this if the
  * sheet's column count changes — frame index = row * FRAMES_PER_ROW + column.
  */
-const FRAMES_PER_ROW = 4;
+export const FRAMES_PER_ROW = 4;
+
+/**
+ * Walk-cycle animation rate in frames per second. Exported so the follower companion
+ * can reuse the exact same rate; tune it together with PLAYER_SPEED_PX_PER_SEC in
+ * GameScene.js.
+ */
+export const WALK_FRAME_RATE = 4;
 
 export default class PlayerController {
   /**
@@ -46,7 +53,7 @@ export default class PlayerController {
     this._keyStack = [];
 
     /** @type {number} */
-    this._animFrameRate = 4;
+    this._animFrameRate = WALK_FRAME_RATE;
 
     /**
      * Left horizontal clamp bound (start-map floor left edge). Defaults to

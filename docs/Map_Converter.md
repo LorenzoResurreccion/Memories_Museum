@@ -37,4 +37,4 @@ Per .kiro/steering/structure.md: older code referenced madison map/tileset asset
 
 ## Media convention (photos / dialogue)
 
-Dialogue text is compiled into the game (the src/data/memories.js manifest); it is not fetched at runtime. Photos/audio are not bundled -- they are referenced by URL and loaded lazily on interaction. The game and its media are served from a single bucket under separate prefixes (game at /, media under a media prefix), so redeploying the game does not touch media. Local media is staged in the git-ignored sibling Memories/ folder.
+Dialogue text is not compiled into the game: the letters (Memories/dialogue/NN.md) are fetched once at startup by src/data/loadMemories.js. Photos/audio are not bundled either -- they are referenced by URL and loaded lazily on interaction. The game and its media are served from a single bucket under separate prefixes (game at /, media under a media prefix), so redeploying the game does not touch media. Local media is staged in the git-ignored sibling Memories/ folder.

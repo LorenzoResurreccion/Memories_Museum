@@ -21,6 +21,7 @@
  */
 
 import { paintingUrl } from './mediaBase.js';
+import { MEMORIES } from './memories.js';
 
 /**
  * PAINTING_PLACEHOLDER_KEY — texture key used when a Memory_Index has no painting, its
@@ -42,21 +43,25 @@ export function paintingKey(index) {
 /**
  * PAINTINGS — the Painting_Image_Source.
  *
- * A plain object keyed by Memory_Index (0-based), holding exactly N authored entries at
- * contiguous indices `0 .. N-1`, matching the Memories_Manifest size (`MEMORIES` in
- * `src/data/memories.js`). Each entry's `key` is the texture key the scene renders and
- * its `url` is where that texture loads from (both derived from the index, so the index
- * stays the single source of truth). Keep indices contiguous `0 .. N-1` so N stays in
- * sync with `MEMORIES`.
+ * DERIVED from `MEMORIES`: one entry per loaded memory, rebuilt in place by
+ * `syncPaintings()` after `loadMemories()` runs (no second list to edit). Each entry's `key` is
+ * the texture key the scene renders and its `url` is where that texture loads from
+ * (`<base>/paintings/NN.png`). If `NN.png` is missing from the media folder or bucket,
+ * the load fails locally and the frame shows the placeholder (never fatal).
  *
  * @type {Record<number, PaintingEntry>}
  */
-export const PAINTINGS = {
-  0: { key: paintingKey(0), url: paintingUrl(0) },
-  1: { key: paintingKey(1), url: paintingUrl(1) },
-  2: { key: paintingKey(2), url: paintingUrl(2) },
-  3: { key: paintingKey(3), url: paintingUrl(3) },
-  4: { key: paintingKey(4), url: paintingUrl(4) },
-  5: { key: paintingKey(5), url: paintingUrl(5) },
-  6: { key: paintingKey(6), url: paintingUrl(6) },
-};
+export const PAINTINGS = {};
+
+/**
+ * Rebuild `PAINTINGS` in place from the current `MEMORIES` (one entry per memory).
+ * Called by `loadMemories()` after the letters are installed; safe to call any time.
+ */
+export function syncPaintings() {
+  for (const key of Object.keys(PAINTINGS)) delete PAINTINGS[key];
+  for (const i of Object.keys(MEMORIES).map(Number).sort((a, b) => a - b)) {
+    PAINTINGS[i] = { key: paintingKey(i), url: paintingUrl(i) };
+  }
+}
+
+syncPaintings();

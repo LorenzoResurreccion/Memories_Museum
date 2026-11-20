@@ -2,9 +2,10 @@
 
 > **Status:** design note for later. Nothing here is implemented yet. Build this when you're
 > ready to deploy — after the app is polished and most memories are authored. The app was
-> designed so you can keep adding memories (edit `memories.js` / `paintings.js`, drop files in
-> `Memories/`), and nothing in this note changes that flexibility — it only governs *how the
-> media is served*, not how memories are authored.
+> designed so you can keep adding memories (drop `NN.md` / `NN.jpg` / `NN.png` in `Memories/` and
+> upload), and nothing in this note changes that flexibility — it only governs *how the
+> content is served*, not how memories are authored. The letters (`Memories/dialogue/*.md`) are
+> served the same way as the photos and paintings, so this gating covers them too.
 
 ## The problem in one sentence
 
@@ -51,10 +52,16 @@ are not. Here's why.
 | How it gates access | One credential the browser stores, auto-attached to **every** request under `/Memories/*` | A separate signature baked into **each** file URL |
 | Fits `<img>` photos? | Yes, automatically | Yes, but each URL must be signed |
 | Fits Phaser texture loads? | Yes, automatically (same cookie) | You'd have to sign every painting URL too |
-| Code changes in `memories.js` / `paintings.js`? | **None** — URLs stay plain | You'd inject signed URLs at runtime and handle expiry |
+| Code changes in `mediaBase.js` / `loadMemories.js`? | **One:** run `loadMemories()` after login (see below) — URLs stay plain | You'd inject signed URLs at runtime and handle expiry |
 
-Because the painting textures are loaded by Phaser (`this.load.image(key, url)`) **and** the
-photos are loaded as `<img>`, a cookie covers both with zero per-asset handling. Signed URLs
+Because the painting textures are loaded by Phaser (`this.load.image(key, url)`), the photos are
+loaded as `<img>`, **and** the letters are loaded with same-origin `fetch()` (which sends cookies
+by default), a cookie covers all three with zero per-asset handling.
+
+**Ordering constraint:** `main.jsx` currently calls `loadMemories()` before rendering anything.
+Behind signed cookies that request would happen before the recipient logs in, get `403` for
+`00.md`, and boot with N = 0 (every frame a "future memory"). When adding the login screen, call
+`loadMemories()` after the cookie is set, then start the game. Signed URLs
 would force runtime URL-signing into the static data modules, which fights the whole design.
 So: **signed cookies.**
 
@@ -139,8 +146,9 @@ access is gated.
 | Signed URLs | Yes | Compute + runtime URL signing | No (fights the static modules) |
 
 **Recommendation:** the middle row. It's the difference between "feels locked" and "is locked,"
-and the cookie approach means `memories.js` / `paintings.js` / `preload()` need **no changes** —
-the plain `/Memories/...` URLs just start requiring a valid cookie, transparently.
+and the cookie approach means `mediaBase.js` / `paintings.js` / `preload()` need **no changes** —
+the plain `/Memories/...` URLs just start requiring a valid cookie, transparently. The only code
+change is moving the `loadMemories()` call to after login.
 
 ## Implementation checklist (for deploy day)
 

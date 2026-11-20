@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { MEMORIES, FUTURE_MEMORY_TEXT, FUTURE_MEMORY_OVERLAY } from '../memories.js';
+import { describe, it, expect, afterEach } from 'vitest';
+import { MEMORIES, FUTURE_MEMORY_TEXT, FUTURE_MEMORY_OVERLAY, setMemories } from '../memories.js';
 
 /**
  * Example-based tests for the static Memories_Manifest (`src/data/memories.js`).
@@ -47,9 +47,8 @@ describe('memories manifest', () => {
   });
 
   describe('MEMORIES entries', () => {
-    it('contains at least one authored entry (N >= 1)', () => {
-      const n = Object.keys(MEMORIES).length;
-      expect(n).toBeGreaterThanOrEqual(1);
+    it('ships no letter text in the code (empty until loadMemories fills it)', () => {
+      expect(Object.keys(MEMORIES)).toHaveLength(0);
     });
 
     it('is keyed by contiguous integers starting at 0 (0..N-1, no gaps)', () => {
@@ -76,6 +75,26 @@ describe('memories manifest', () => {
         // imageUrl: string | null
         expect(entry.imageUrl === null || typeof entry.imageUrl === 'string').toBe(true);
       }
+    });
+  });
+
+  describe('setMemories', () => {
+    afterEach(() => setMemories({}));
+
+    it('replaces the contents in place (same object identity)', () => {
+      const ref = MEMORIES;
+      setMemories({ 0: { text: ['a'], imageUrl: null }, 1: { text: ['b'], imageUrl: 'x' } });
+      expect(MEMORIES).toBe(ref);
+      expect(Object.keys(MEMORIES)).toEqual(['0', '1']);
+      setMemories({ 0: { text: ['c'], imageUrl: null } });
+      expect(MEMORIES).toEqual({ 0: { text: ['c'], imageUrl: null } });
+    });
+
+    it('keeps only the contiguous run from 0 and ignores bad input', () => {
+      setMemories({ 0: { text: ['a'], imageUrl: null }, 2: { text: ['c'], imageUrl: null } });
+      expect(Object.keys(MEMORIES)).toEqual(['0']);
+      setMemories(null);
+      expect(Object.keys(MEMORIES)).toHaveLength(0);
     });
   });
 });
