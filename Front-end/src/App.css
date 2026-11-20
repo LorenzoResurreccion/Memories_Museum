@@ -3,7 +3,31 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  /* Solid color below the game window (and the fallback while the image loads). */
   background-color: #0d0d1a;
+  /* Half the canvas height (480 in src/phaser/config.js). Keep in sync with it. */
+  --game-half-height: 240px;
+}
+
+/* Background image (public/background.jpg) from the bottom edge of the game window up.
+   The canvas is vertically centered, so its bottom edge is at 50% + half its height;
+   below that line the solid color above shows. The image's bottom is anchored to the
+   game's bottom edge. It lives on its own layer because image-rendering is inherited:
+   pixelated scaling keeps pixel art crisp, but must not leak onto the memory photo. */
+.app-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(50% + var(--game-half-height));
+  z-index: 0;
+  pointer-events: none;
+  background-image: url('/background.jpg');
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
 }
 
 .app-container > div:first-child {

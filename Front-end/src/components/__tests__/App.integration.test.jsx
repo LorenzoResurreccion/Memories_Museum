@@ -23,6 +23,7 @@ vi.mock('phaser', () => ({
 
 vi.mock('../../phaser/config.js', () => ({
   gameConfig: { type: 0, width: 800, height: 600, scene: [] },
+  gameWidthFor: () => 800,
 }));
 
 import App from '../../App.jsx';
