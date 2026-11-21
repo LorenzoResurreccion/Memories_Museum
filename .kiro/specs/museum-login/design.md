@@ -79,7 +79,7 @@ One caveat: some browsers restore session cookies when "continue where you left 
 
 ### App phase state machine
 
-`App.jsx` gains a `phase` that gates everything else. EventBus wiring is unchanged and only matters in `ready`.
+A new `StartupGate` component holds a `phase` that gates everything else and renders `<App />` only in `ready`. `App.jsx` itself is unchanged: it stays the overlay coordinator, and its EventBus wiring only runs once it mounts. (Putting the phases inside App would have mixed two jobs and broken every existing App test, which render `<App />` and expect the game immediately.)
 
 ```text
             Auth_Enabled false
@@ -103,14 +103,17 @@ One caveat: some browsers restore session cookies when "continue where you left 
 
 #### `src/main.jsx` (change)
 
-Renders `<App />` immediately. The `loadMemories().then(...)` wrapper moves into the App (Req 1.5).
+Renders `<StartupGate><App /></StartupGate>` immediately. The `loadMemories().then(...)` wrapper moves into the gate (Req 1.5).
 
-#### `src/App.jsx` (change)
+#### `src/components/StartupGate.jsx` + `StartupGate.css` (new)
 
-- Adds `phase` (`checking | login | loading | ready`) and the transitions above.
-- Reads `AUTH_ENABLED` from `src/data/authClient.js`.
-- In `ready`, renders exactly what it renders today. `GameCanvas` mounts only in `ready`, so the Phaser game never starts before the letters load.
+- Props: `children` (the App), plus `authEnabled`, `probe`, `load` (default to `AUTH_ENABLED`, `probeSession`, `loadMemories`; injectable for tests).
+- Holds `phase` (`checking | login | loading | ready`) and the transitions above. Starts in `checking` with auth on, `loading` with auth off.
+- In `login` and the loading states it renders its own `.app-container` (so the page background shows) with the `LoginScreen` or an "Opening the museum…" status line. In `ready` it renders `children`, so `GameCanvas` mounts only then and the Phaser game never starts before the letters load.
+- Effects are cancelled on unmount, so React StrictMode's double-run in dev never sets state twice.
 - Shows the existing "no letters loaded" console warning when N is 0.
+
+#### `src/App.jsx` (unchanged)
 
 #### `src/components/LoginScreen.jsx` + `LoginScreen.css` (new)
 
@@ -218,7 +221,7 @@ Each question has exactly one accepted answer. Normalization still forgives case
 - `verify(input, stored)` recomputes the hash and compares with `crypto.timingSafeEqual`.
 - The username is matched on its hash too, so the config holds no plaintext.
 
-Cost per finish request is 5 scrypt runs (username, password, 3 answers), about 50–100 ms each on a 512 MB function, so under half a second per sign-in.
+Cost per finish request is 5 scrypt runs (username, password, 3 answers). Measured on the Gift_Giver's laptop: about 400 ms per verify, so about 2 s per sign-in; a 512 MB Lambda may be slower. Kept at N = 2^15 for now. Revisit after Demo_Mode or at deploy: either raise the Lambda to 1024 MB (more CPU) or re-run the setup tool with N = 2^14. Each stored hash records its own cost, so changing it needs no code change.
 
 #### Attempt_Limiter (`limiter.js`)
 
@@ -448,7 +451,7 @@ Logs record route, outcome (`ok | mismatch | limited | invalid | error`) and dur
 - `authClient.property.test.js`: Properties 8, 9.
 - `authClient.test.js`: HEAD request target, `credentials: 'same-origin'`, `cache: 'no-store'`, JSON body shape.
 - `LoginScreen.test.jsx`: field labels and autocomplete attributes; empty-field validation; 401 on start keeps username and clears password; one question at a time with Back; finish sends all answers in one request; 401 on finish resets to question 1 with one generic message; 429 disables submit and shows minutes; focus moves on each step; no secrets in `localStorage`/`sessionStorage`.
-- `App.auth.test.jsx`: phase transitions for probe 200/404/403/network; `GameCanvas` never mounts before `loadMemories()` resolves; `AUTH_ENABLED` false skips login; no `/Memories/*` request while on the Login_Screen except the probe.
+- `StartupGate.test.jsx`: phase transitions for signed-in / signed-out / unreachable (+ Try again); children never render before `load()` resolves; auth off skips the probe and login; `load()` is never called while the Login_Screen shows. Existing App tests stay as they are, since App is unchanged.
 - `ImageViewer.test.jsx`: photo `onError` shows the refresh message.
 - Existing tests keep passing. Tests that render `App` mock `authClient` with `AUTH_ENABLED = false`.
 

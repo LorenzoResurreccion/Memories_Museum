@@ -1,0 +1,26 @@
+{
+  "name": "auth-function",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Museum login: checks credentials and answers, issues CloudFront signed cookies for /Memories/*",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest --run",
+    "lint": "eslint .",
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/cloudfront-signer": "^3.1172.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.5.0",
+    "fast-check": "^4.8.0",
+    "globals": "^17.6.0",
+    "vitest": "^4.1.9"
+  }
+}

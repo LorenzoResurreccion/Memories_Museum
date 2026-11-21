@@ -81,9 +81,38 @@ describe('ImageViewer', () => {
 
     const fallback = container.querySelector('.image-viewer-fallback');
     expect(fallback).not.toBeNull();
-    expect(fallback.textContent).toContain('No image available');
+    expect(fallback.textContent).toBe("This photo couldn't load. Refreshing the page should fix it.");
     // Image should no longer be rendered
     expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('announces the refresh hint and keeps the close button when a photo fails (Req 7.6)', () => {
+    const onDismiss = vi.fn();
+    const { container } = render(
+      <ImageViewer imageUrl="/Memories/photos/05.jpg" visible={true} onDismiss={onDismiss} />
+    );
+    fireEvent.error(container.querySelector('img'));
+
+    const fallback = container.querySelector('.image-viewer-fallback');
+    expect(fallback.getAttribute('role')).toBe('status');
+    expect(fallback.textContent).toMatch(/refresh/i);
+
+    fireEvent.click(container.querySelector('.image-viewer-close'));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('tries the next photo again after an earlier one failed', () => {
+    const { container, rerender } = render(
+      <ImageViewer imageUrl="/Memories/photos/05.jpg" visible={true} onDismiss={vi.fn()} />
+    );
+    fireEvent.error(container.querySelector('img'));
+    expect(container.querySelector('img')).toBeNull();
+
+    rerender(<ImageViewer imageUrl="/Memories/photos/06.jpg" visible={true} onDismiss={vi.fn()} />);
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img.getAttribute('src')).toBe('/Memories/photos/06.jpg');
+    expect(container.querySelector('.image-viewer-fallback')).toBeNull();
   });
 
   it('calls onDismiss when the close button is clicked', () => {

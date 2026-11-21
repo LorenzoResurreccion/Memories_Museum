@@ -75,6 +75,9 @@ Memories_Museum/
 │       ├── phaser/            # Phaser scene, player + follower controllers, segment/interaction subsystems, EventBus bridge
 │       └── App.jsx            # Coordinates React and Phaser state
 │
+├── Auth-function/             # Museum login (AWS Lambda, in progress): checks the sign-in, issues
+│                              # CloudFront signed cookies for /Memories/*. Own package.json. Spec: .kiro/specs/museum-login
+│
 ├── Memories/                  # Private content (git-ignored): dialogue letters, real photos, pixel paintings
 │                              # Uploaded to S3 beside the app; symlinked into Front-end/public/ for local dev
 └── Tile_Creator/              # Python tool that compiles tileset PNGs from a JSON config

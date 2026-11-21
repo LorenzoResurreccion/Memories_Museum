@@ -1,0 +1,13 @@
+/* The short loading line shown while checking the session and loading the letters. */
+.startup-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 300;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-size: 12px;
+  color: #f4ead5;
+}

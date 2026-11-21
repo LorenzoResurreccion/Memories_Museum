@@ -72,8 +72,10 @@ export default function ImageViewer({ imageUrl, visible, onDismiss, keyboardActi
         </button>
 
         {hasError ? (
-          <div className="image-viewer-fallback">
-            No image available
+          // With the museum login, the usual cause is the 12-hour access window ending
+          // while the tab stayed open; a refresh sends her back through sign-in (Req 7.6).
+          <div className="image-viewer-fallback" role="status">
+            This photo couldn&apos;t load. Refreshing the page should fix it.
           </div>
         ) : (
           <img

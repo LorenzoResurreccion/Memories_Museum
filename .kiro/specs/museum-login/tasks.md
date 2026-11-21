@@ -8,77 +8,77 @@ Build the sign-in in four layers: the pure Auth-function modules first (normaliz
 
 ## Tasks
 
-- [ ] 1. Scaffold `Auth-function/`
-  - [ ] 1.1 Create `package.json` (ES modules; deps `@aws-sdk/cloudfront-signer`; dev deps `vitest`, `fast-check`, `esbuild`, `eslint`), scripts `test` (`vitest --run`), `lint`, `build` (esbuild bundle of `src/handler.js` to `dist/handler.mjs`)
-  - [ ] 1.2 Add `Auth-function/` to the repo README structure and steering `structure.md`; git-ignore `Auth-function/dist/`, `Auth-function/node_modules/` and `Auth-function/demo/`
+- [x] 1. Scaffold `Auth-function/`
+  - [x] 1.1 Create `package.json` (ES modules; deps `@aws-sdk/cloudfront-signer`; dev deps `vitest`, `fast-check`, `esbuild`, `eslint`), scripts `test` (`vitest --run`), `lint`, `build` (esbuild bundle of `src/handler.js` to `dist/handler.mjs`)
+  - [x] 1.2 Add `Auth-function/` to the repo README structure and steering `structure.md`; git-ignore `Auth-function/dist/`, `Auth-function/node_modules/` and `Auth-function/demo/`
   - _Requirements: 9.1_
 
-- [ ] 2. Pure matching and hashing
-  - [ ] 2.1 `src/normalize.js`: `normalizeAnswer`, `normalizeUsername`
+- [x] 2. Pure matching and hashing
+  - [x] 2.1 `src/normalize.js`: `normalizeAnswer`, `normalizeUsername`
     - _Requirements: 4.1, 4.2, 4.3_
-  - [ ] 2.2 `src/hashing.js`: `hash`, `verify` (scrypt, stored format `scrypt$N$r$p$salt$key`, `timingSafeEqual`), with injectable cost for tests
+  - [x] 2.2 `src/hashing.js`: `hash`, `verify` (scrypt, stored format `scrypt$N$r$p$salt$key`, `timingSafeEqual`), with injectable cost for tests
     - _Requirements: 4.4_
-  - [ ] 2.3 `src/checks.js`: `checkCredentials`, `checkAnswers`, both running every comparison; a verify counter seam for tests
+  - [x] 2.3 `src/checks.js`: `checkCredentials`, `checkAnswers`, both running every comparison; a verify counter seam for tests
     - _Requirements: 4.1, 4.5, 4.6_
-  - [ ]* 2.4 Property test: Property 1 (normalization) in `normalize.property.test.js`
+  - [x]* 2.4 Property test: Property 1 (normalization) in `normalize.property.test.js`
     - **Validates: Requirements 4.1, 4.2**
-  - [ ]* 2.5 Property test: Property 2 (hash round-trip) in `hashing.property.test.js`
+  - [x]* 2.5 Property test: Property 2 (hash round-trip) in `hashing.property.test.js`
     - **Validates: Requirement 4.4**
-  - [ ]* 2.6 Property tests: Properties 3 and 4 in `checks.property.test.js`
+  - [x]* 2.6 Property tests: Properties 3 and 4 in `checks.property.test.js`
     - **Validates: Requirements 4.1, 4.5, 4.6**
 
-- [ ] 3. Cookies and limiter
-  - [ ] 3.1 `src/cookies.js`: custom policy for `https://${APP_DOMAIN}/Memories/*`, 12-hour `DateLessThan`, three cookie strings with `Path=/Memories; Secure; HttpOnly; SameSite=Strict`
+- [x] 3. Cookies and limiter
+  - [x] 3.1 `src/cookies.js`: custom policy for `https://${APP_DOMAIN}/Memories/*`, 12-hour `DateLessThan`, three cookie strings with `Path=/Memories; Secure; HttpOnly; SameSite=Strict`
     - _Requirements: 5.1, 5.2, 5.3_
-  - [ ] 3.2 `src/limiter.js`: `isLocked(ip, now)`, `recordFailure(ip, now)`, `clear(ip)` over a module-scope `Map` keyed by hashed IP; sweep expired entries; `now` injected
+  - [x] 3.2 `src/limiter.js`: `isLocked(ip, now)`, `recordFailure(ip, now)`, `clear(ip)` over a module-scope `Map` keyed by hashed IP; sweep expired entries; `now` injected
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_ (per-IP only, no global limit, in memory)
-  - [ ]* 3.3 Property test: Property 5 in `cookies.property.test.js`
+  - [x]* 3.3 Property test: Property 5 in `cookies.property.test.js`
     - **Validates: Requirements 5.1, 5.2, 5.3**
-  - [ ]* 3.4 Property test: Property 6 in `limiter.property.test.js`
+  - [x]* 3.4 Property test: Property 6 in `limiter.property.test.js`
     - **Validates: Requirements 8.1–8.4**
 
-- [ ] 4. Checkpoint: `npm run test` and `npm run lint` in `Auth-function/` pass
+- [x] 4. Checkpoint: `npm run test` and `npm run lint` in `Auth-function/` pass
 
-- [ ] 5. Handler and config
-  - [ ] 5.1 `src/config.js`: `loadConfig(env)` reads `AUTH_CONFIG`, `CLOUDFRONT_PRIVATE_KEY_B64`, `CLOUDFRONT_KEY_PAIR_ID`, `APP_DOMAIN` once per instance, validates the Auth_Config shape, and reports which variable is bad without its value
+- [x] 5. Handler and config
+  - [x] 5.1 `src/config.js`: `loadConfig(env)` reads `AUTH_CONFIG`, `CLOUDFRONT_PRIVATE_KEY_B64`, `CLOUDFRONT_KEY_PAIR_ID`, `APP_DOMAIN` once per instance, validates the Auth_Config shape, and reports which variable is bad without its value
     - _Requirements: 9.1, 9.5, 9.6_
-  - [ ] 5.2 `src/handler.js`: `createHandler({ env, now, signCookies })` plus the default Lambda `handler`; routes `POST /api/login/start` and `/api/login/finish`, 4 KB / JSON / field validation (400, not counted), viewer IP from `CloudFront-Viewer-Address`, limiter gate (429 + `Retry-After`), checks, 401 with attempt recorded, 204 + `cookies` array on success, `Cache-Control: no-store` everywhere, secret-free logging
+  - [x] 5.2 `src/handler.js`: `createHandler({ env, now, signCookies })` plus the default Lambda `handler`; routes `POST /api/login/start` and `/api/login/finish`, 4 KB / JSON / field validation (400, not counted), viewer IP from `CloudFront-Viewer-Address`, limiter gate (429 + `Retry-After`), checks, 401 with attempt recorded, 204 + `cookies` array on success, `Cache-Control: no-store` everywhere, secret-free logging
     - _Requirements: 4.5–4.8, 5.1, 5.6, 8.1–8.4_
-  - [ ]* 5.3 Property tests: Properties 7 and 10 in `handler.property.test.js`
+  - [x]* 5.3 Property tests: Properties 7 and 10 in `handler.property.test.js`
     - **Validates: Requirements 4.7, 4.8, 5.6**
-  - [ ]* 5.4 Example tests in `handler.test.js` (routes, 404, no-store, 503 per missing/malformed environment variable, counter cleared on success)
+  - [x]* 5.4 Example tests in `handler.test.js` (routes, 404, no-store, 503 per missing/malformed environment variable, counter cleared on success)
     - _Requirements: 4.8, 8.4_
 
-- [ ] 6. Setup tool
-  - [ ] 6.1 `tools/make-config.mjs`: hidden prompts, password confirmation, 3 questions with one answer each, show each Normalized_Answer; `--print` (one-line `AUTH_CONFIG`), `--demo` (write the git-ignored Demo_Config), `--key <pem>` (print `CLOUDFRONT_PRIVATE_KEY_B64`, run the 4 KB check); no plaintext written anywhere
+- [x] 6. Setup tool
+  - [x] 6.1 `tools/make-config.mjs`: hidden prompts, password confirmation, 3 questions with one answer each, show each Normalized_Answer; `--print` (one-line `AUTH_CONFIG`), `--demo` (write the git-ignored Demo_Config), `--key <pem>` (print `CLOUDFRONT_PRIVATE_KEY_B64`, run the 4 KB check); no plaintext written anywhere
     - _Requirements: 9.2, 9.3, 9.4, 9.7_
-  - [ ]* 6.2 `make-config.test.js` with scripted input: valid shape, `--print` writes nothing, `--demo` writes only the Demo_Config, `--key` base64 round-trips, 4 KB warning
+  - [x]* 6.2 `make-config.test.js` with scripted input: valid shape, `--print` writes nothing, `--demo` writes only the Demo_Config, `--key` base64 round-trips, 4 KB warning
     - _Requirements: 9.2, 9.3, 9.7_
 
-- [ ] 7. Checkpoint: `npm run test`, `npm run lint` and `npm run build` in `Auth-function/` pass
+- [x] 7. Checkpoint: `npm run test`, `npm run lint` and `npm run build` in `Auth-function/` pass
 
-- [ ] 8. Front-end client
-  - [ ] 8.1 `src/data/authClient.js`: `AUTH_ENABLED`, `probeSession`, `startLogin`, `finishLogin`, `postJson` (SHA-256 body header, `same-origin`, `no-store`)
+- [x] 8. Front-end client
+  - [x] 8.1 `src/data/authClient.js`: `AUTH_ENABLED`, `probeSession`, `startLogin`, `finishLogin`, `postJson` (SHA-256 body header, `same-origin`, `no-store`)
     - _Requirements: 7.1–7.4, 8.7_
-  - [ ] 8.2 `Front-end/.env.production` with `VITE_AUTH_ENABLED=true`
+  - [x] 8.2 `Front-end/.env.production` with `VITE_AUTH_ENABLED=true`
     - _Requirements: 1.3_
-  - [ ]* 8.3 Property tests: Properties 8 and 9 in `authClient.property.test.js`
+  - [x]* 8.3 Property tests: Properties 8 and 9 in `authClient.property.test.js`
     - **Validates: Requirements 7.1–7.4, 8.7**
-  - [ ]* 8.4 Example tests in `authClient.test.js`
+  - [x]* 8.4 Example tests in `authClient.test.js`
     - _Requirements: 7.1_
 
-- [ ] 9. Login screen and App phases
-  - [ ] 9.1 `src/components/LoginScreen.jsx` + `.css`: Credential_Step, Question_Step (one at a time, Back, "1 of 3"), messages per the Error Handling table, `aria-live`, focus management, 429 countdown, museum styling
+- [x] 9. Login screen and App phases
+  - [x] 9.1 `src/components/LoginScreen.jsx` + `.css`: Credential_Step, Question_Step (one at a time, Back, "1 of 3"), messages per the Error Handling table, `aria-live`, focus management, 429 countdown, museum styling
     - _Requirements: 2.1–2.6, 3.1–3.7, 8.7, 10.1–10.4_
-  - [ ] 9.2 `src/App.jsx`: `phase` state machine (`checking → login | loading → ready`); mount `GameCanvas` only in `ready`; `main.jsx` renders `<App />` directly
+  - [x] 9.2 `src/components/StartupGate.jsx`: `phase` state machine (`checking → login | loading → ready`); renders the App (and so `GameCanvas`) only in `ready`; `main.jsx` renders `<StartupGate><App /></StartupGate>`. App.jsx unchanged.
     - _Requirements: 1.1–1.5, 5.4, 5.5, 7.2–7.4_
-  - [ ] 9.3 `ImageViewer.jsx`: photo `onError` refresh message
+  - [x] 9.3 `ImageViewer.jsx`: photo `onError` refresh message
     - _Requirements: 7.6_
-  - [ ]* 9.4 `LoginScreen.test.jsx`
+  - [x]* 9.4 `LoginScreen.test.jsx`
     - _Requirements: 2.1–2.6, 3.1–3.7, 8.7, 10.2_
-  - [ ]* 9.5 `App.auth.test.jsx`; update existing App tests to mock `authClient` with auth off
+  - [x]* 9.5 `StartupGate.test.jsx` (existing App tests need no change: App is unchanged)
     - _Requirements: 1.1–1.5, 7.1–7.4_
-  - [ ]* 9.6 `ImageViewer.test.jsx`: `onError` case
+  - [x]* 9.6 `ImageViewer.test.jsx`: `onError` case
     - _Requirements: 7.6_
 
 - [ ] 10. Local Demo_Mode

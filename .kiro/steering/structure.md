@@ -1,10 +1,12 @@
 # Structure
 
-The repo has two top-level areas: the game client and an asset-generation tool. The game is a static, self-contained site — there is no backend.
+The repo has three top-level code areas: the game client, the login function, and an asset-generation tool. The game is a static site; the only server-side piece is the small login function (spec: `.kiro/specs/museum-login`, in progress).
 
 ```text
 Memories_Museum/
 ├── Front-end/                 # React + Phaser game client (Vite)
+├── Auth-function/             # Museum login (AWS Lambda, Node ESM): own package.json, tests, esbuild bundle
+├── Memories/                  # Private content (git-ignored): dialogue/*.md, photos, paintings — fetched by URL, served from S3
 ├── Memories/                  # Private content (git-ignored): dialogue/*.md, photos, paintings — fetched by URL, served from S3
 ├── Tile_Creator/              # Python tileset generator (Pillow)
 ├── docs/                      # Project docs
@@ -81,6 +83,21 @@ Tile_Creator/
 ```
 
 Compiles a JSON palette + tile layout into a 16px-grid tileset sheet (default 8 columns, rows derived from tile count). Generated sheets feed `Front-end/public/assets/tilesets/`.
+
+## Auth-function/ (museum login, in progress)
+
+```text
+Auth-function/
+├── package.json               # scripts: test, lint, build (Node ESM, own deps)
+├── eslint.config.js           # Node globals
+├── scripts/build.mjs          # esbuild: src/handler.js -> dist/handler.mjs (everything bundled)
+├── src/                       # handler + pure modules (normalize, hashing, checks, cookies, limiter, config)
+├── tools/make-config.mjs      # local setup tool: hashed AUTH_CONFIG / Demo_Config
+├── demo/                      # git-ignored: Demo_Config for npm run dev:auth
+└── __tests__/
+```
+
+Never depends on `Front-end/`. Secrets reach it only as Lambda environment variables (spec Req 9). Run its commands from `Auth-function/`: `npm run test`, `npm run lint`, `npm run build`.
 
 ## Conventions
 

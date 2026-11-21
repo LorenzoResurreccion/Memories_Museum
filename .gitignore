@@ -8,3 +8,7 @@ dist/
 Front-end/dist/
 .DS_Store
 External-Bucket/
+
+# Auth function (museum login). node_modules/ and dist/ are already covered above.
+# demo/ holds the local Demo_Config (hashed login settings for npm run dev:auth).
+Auth-function/demo/

@@ -43,7 +43,7 @@ This is the one backend component the project allows (see `docs/Private_Media_De
 2. WHEN the Recipient completes the Question_Step successfully, THE App SHALL call `loadMemories()` and SHALL mount the Phaser game only after `loadMemories()` resolves.
 3. WHILE Auth_Enabled is false, THE App SHALL skip the Login_Screen, call `loadMemories()`, and mount the game, matching the current behavior.
 4. WHILE the Session_Probe or `loadMemories()` is in progress, THE App SHALL show a loading state and SHALL NOT show the Login_Screen form or the game.
-5. THE `main.jsx` entry SHALL render the App immediately and SHALL NOT call `loadMemories()` itself; the App owns the order of probe, login, loading and game.
+5. THE `main.jsx` entry SHALL render `<StartupGate><App /></StartupGate>` immediately and SHALL NOT call `loadMemories()` itself; the StartupGate owns the order of probe, login, loading and game, and renders the App only when ready.
 
 ### Requirement 2: Credential_Step
 
