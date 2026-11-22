@@ -4,7 +4,7 @@
 
 Build the sign-in in four layers: the pure Auth-function modules first (normalize, hash, checks, cookies, limiter), then the Lambda handler and setup tool, then the front-end (client, LoginScreen, App phases), then the local Demo_Mode that runs it all end to end. AWS setup is manual and listed last; it is not needed to build or test the code. Front-end paths are under `Front-end/`; the auth function is the new top-level `Auth-function/` folder with its own `package.json`. Property tests use `*.property.test.js`, `{ numRuns: 100 }` or more, and a tag comment `Feature: museum-login, Property N: ...`. Never start the dev server; run `npm run test` and `npm run lint` in each package at checkpoints.
 
-**Status:** not started. Tasks 1–11 need no AWS account and are confirmed locally in Demo_Mode (`npm run dev:auth`). AWS setup and any GitHub pipeline are worked out at deploy time (task 13).
+**Status:** tasks 1–12 done and confirmed locally in Demo_Mode (`npm run dev:auth`). Only task 13 (AWS setup and any GitHub pipeline) remains, worked out at deploy time.
 
 ## Tasks
 
@@ -81,21 +81,21 @@ Build the sign-in in four layers: the pure Auth-function modules first (normaliz
   - [x]* 9.6 `ImageViewer.test.jsx`: `onError` case
     - _Requirements: 7.6_
 
-- [ ] 10. Local Demo_Mode
-  - [ ] 10.1 `Front-end/dev/authDemoPlugin.js`: dev-only Vite plugin (`apply: 'serve'`) that generates an in-memory demo key, loads the Demo_Config (startup hint + 503 if missing), runs the real handler for `/api/*` with an `x-amz-content-sha256` check, and gates `/Memories/*` by verifying the signed cookies' signature, expiry and resource
+- [x] 10. Local Demo_Mode
+  - [x] 10.1 `Front-end/dev/authDemoPlugin.js`: dev-only Vite plugin (`apply: 'serve'`) that generates an in-memory demo key, loads the Demo_Config (startup hint + 503 if missing), runs the real handler for `/api/*` with an `x-amz-content-sha256` check, and gates `/Memories/*` by verifying the signed cookies' signature, expiry and resource
     - _Requirements: 11.2, 11.3, 11.4, 11.6_
-  - [ ] 10.2 Wire it in: `vite.config.js` adds the plugin only when `mode === 'demo'`; `Front-end/.env.demo` with `VITE_AUTH_ENABLED=true`; `package.json` script `"dev:auth": "vite --mode demo"`
+  - [x] 10.2 Wire it in: `vite.config.js` adds the plugin only when `mode === 'demo'`; `Front-end/.env.demo` with `VITE_AUTH_ENABLED=true`; `package.json` script `"dev:auth": "vite --mode demo"`
     - _Requirements: 11.1, 11.5, 11.7_
-  - [ ]* 10.3 `Front-end/dev/__tests__/authDemoPlugin.test.js` (cookie gate cases, body hash check, Set-Cookie passthrough, missing Demo_Config, plugin absent from `vite build` output)
+  - [x]* 10.3 `Front-end/dev/__tests__/authDemoPlugin.test.js` (cookie gate cases, body hash check, Set-Cookie passthrough, missing Demo_Config, plugin absent from `vite build` output)
     - _Requirements: 11.2–11.6_
-  - [ ] 10.4 Manual walkthrough by the Gift_Giver: `node Auth-function/tools/make-config.mjs --demo`, then `npm run dev:auth` in Chrome or Firefox. Check the sign-in, a wrong password, a wrong answer, the 5-tries pause, a refresh staying signed in, closing the browser signing out, and the game only starting after sign-in.
+  - [x] 10.4 Manual walkthrough by the Gift_Giver: `node Auth-function/tools/make-config.mjs --demo`, then `npm run dev:auth` in Chrome or Firefox. Check the sign-in, a wrong password, a wrong answer, the 5-tries pause, a refresh staying signed in, closing the browser signing out, and the game only starting after sign-in.
     - _Requirements: 1–5, 7, 8, 10, 11_
 
-- [ ] 11. Checkpoint: `npm run test`, `npm run lint` and `npm run build` pass in `Front-end/` and `Auth-function/`
+- [x] 11. Checkpoint: `npm run test`, `npm run lint` and `npm run build` pass in `Front-end/` and `Auth-function/`
 
-- [ ] 12. Docs and steering
-  - [ ] 12.1 Update `docs/Private_Media_Deployment.md`: point to this spec, replace its checklist with the design's setup section, drop the "403 page → login" step and the Parameter Store references
-  - [ ] 12.2 Update `.kiro/steering/tech.md` (Backend section: the auth function now exists, its boundary, secrets as Lambda environment variables, the "403 = not signed in" rule, and Demo_Mode), `structure.md` (`Auth-function/`, `LoginScreen`, `authClient`, `dev/authDemoPlugin.js`), `product.md` (sign-in in the core experience), and the root `README.md` (`npm run dev:auth`)
+- [x] 12. Docs and steering
+  - [x] 12.1 Update `docs/Private_Media_Deployment.md`: point to this spec, replace its checklist with the design's setup section, drop the "403 page → login" step and the Parameter Store references
+  - [x] 12.2 Update `.kiro/steering/tech.md` (Backend section: the auth function now exists, its boundary, secrets as Lambda environment variables, the "403 = not signed in" rule, and Demo_Mode), `structure.md` (`Auth-function/`, `LoginScreen`, `authClient`, `dev/authDemoPlugin.js`), `product.md` (sign-in in the core experience), and the root `README.md` (`npm run dev:auth`)
 
 - [ ] 13. Deploy (deferred: planned at deploy time, by the Gift_Giver)
   - [ ] 13.1 Decide what a GitHub Actions pipeline handles (likely: build and upload `Front-end/dist/` to S3, push the bundled function with `update-function-code`, OIDC sign-in to AWS) and what stays manual (environment variables, `Memories/` sync)

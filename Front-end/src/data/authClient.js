@@ -16,8 +16,8 @@
 import { dialogueUrl } from './mediaBase.js';
 
 /** True in production builds and Demo_Mode (`VITE_AUTH_ENABLED=true`); false in `npm run dev`. */
-export const AUTH_ENABLED =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_AUTH_ENABLED === 'true';
+// Plain `import.meta.env.VITE_*` form, which Vite replaces statically at build time.
+export const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED === 'true';
 
 const API_BASE = '/api/login';
 

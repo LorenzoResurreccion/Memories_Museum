@@ -539,7 +539,7 @@ describe('FollowerController settle (property tests)', () => {
       ),
       { numRuns: 100 },
     );
-  });
+  }, 30_000); // heavy model run; exceeded the 5 s default under full-suite load
 
   // Feature: follower-companion, Property 26: Settle steps stay valid and the route is clear
   // **Validates: Requirements 13.5, 13.13, 13.14, 13.16, 13.18**

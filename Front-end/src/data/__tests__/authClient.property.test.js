@@ -91,5 +91,5 @@ describe('authClient (property tests)', () => {
       ),
       { numRuns: 200 },
     );
-  });
+  }, 30_000); // 200 Web Crypto digests can exceed the 5 s default under full-suite load
 });

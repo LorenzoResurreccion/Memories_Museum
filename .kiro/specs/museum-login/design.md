@@ -221,7 +221,7 @@ Each question has exactly one accepted answer. Normalization still forgives case
 - `verify(input, stored)` recomputes the hash and compares with `crypto.timingSafeEqual`.
 - The username is matched on its hash too, so the config holds no plaintext.
 
-Cost per finish request is 5 scrypt runs (username, password, 3 answers). Measured on the Gift_Giver's laptop: about 400 ms per verify, so about 2 s per sign-in; a 512 MB Lambda may be slower. Kept at N = 2^15 for now. Revisit after Demo_Mode or at deploy: either raise the Lambda to 1024 MB (more CPU) or re-run the setup tool with N = 2^14. Each stored hash records its own cost, so changing it needs no code change.
+Cost per finish request is 5 scrypt runs (username, password, 3 answers). Measured on the Gift_Giver's laptop: about 400 ms per verify, so about 2 s per sign-in. The Gift_Giver tried it in Demo_Mode and found the speed fine, so N = 2^15 stays. If a 512 MB Lambda turns out noticeably slower at deploy, raise it to 1024 MB (more CPU) or re-run the setup tool with N = 2^14; each stored hash records its own cost, so neither needs a code change.
 
 #### Attempt_Limiter (`limiter.js`)
 
@@ -482,4 +482,6 @@ Logs record route, outcome (`ok | mismatch | limited | invalid | error`) and dur
 - **Sign-out:** no control. Closing the browser signs her out.
 - **Secrets:** Lambda environment variables set by hand, not Parameter Store or CI/CD secrets.
 - **Order of work:** build everything and confirm it in Demo_Mode first; AWS setup and any GitHub pipeline are decided at deploy time.
-- **Look:** a plain framed panel for now, with no themed scene. The Gift_Giver will restyle it once the sign-in is confirmed working; all styling stays in `LoginScreen.css`.
+- **Look:** a plain framed panel, no themed scene; all styling stays in `LoginScreen.css`. The Gift_Giver liked its brown-and-gold palette, so the dialogue box now uses it too, and the game window sits in a wooden frame (`public/border.jpg`, 9-slice in `App.css`) that also frames the login.
+- **Speed:** about 2 s per sign-in at N = 2^15, confirmed fine in Demo_Mode. Not changed.
+- **Questions stay typed answers.** A multiple-choice variant (8–10 options, instant right/wrong) was considered and dropped.

@@ -1,20 +1,31 @@
 .dialogue-box {
   position: absolute;
+  /* Fixed size, whatever the amount of text: from just below the game window's frame
+     down to the bottom of the screen. The canvas is vertically centered, so the frame's
+     bottom edge is at 50% + half the canvas height + the frame's bottom thickness (both
+     set on .app-container in App.css). On a short window the box still keeps 96px. */
+  top: min(calc(50% + var(--game-half-height, 240px) + var(--frame-bottom, 0px) + 8px), calc(100% - 96px));
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   max-width: 800px;
   width: 100%;
-  max-height: 30%;
   box-sizing: border-box;
-  padding: 16px;
+  /* 4px of inset frame bands + 16px of breathing room; extra at the bottom for the ▼. */
+  padding: 20px 20px 32px;
   font-family: "Press Start 2P", "Courier New", monospace;
   font-size: 14px;
   line-height: 1.6;
-  color: #fff;
-  background-color: rgba(0, 0, 0, 0.85);
-  border: 3px solid #fff;
-  border-radius: 4px;
+  /* Same palette as the login panel and photo viewer (hallway frame tiles): dark brown
+     #7a5a2c, gold #d4af37, tan #a8864c, on a deep brown fill. Hard edges.
+     Thinner than the login panel's frame: three 2px bands (6px total). */
+  color: #f4ead5;
+  background-color: #2b1d0e;
+  border: 2px solid #7a5a2c;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px #d4af37,
+    inset 0 0 0 4px #a8864c;
   overflow: auto;
   z-index: 100;
 }
@@ -23,10 +34,13 @@
   margin: 0;
 }
 
+/* The "more pages" arrow sits in the bottom-right corner, outside the text flow, so it
+   never adds a line under the text. */
 .dialogue-indicator {
-  display: block;
-  text-align: right;
-  margin-top: 8px;
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  color: #d4af37;
   animation: bounce 0.6s infinite alternate;
 }
 

@@ -3,35 +3,50 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  /* Solid color below the game window (and the fallback while the image loads). */
-  background-color: #0d0d1a;
-  /* Half the canvas height (480 in src/phaser/config.js). Keep in sync with it. */
+  /* Page color around the framed game window. (Previously #0d0d1a, near black.) */
+  background-color: #160e07;
+
+  /* Half the canvas height (480 in src/phaser/config.js) and half its width (1120).
+     Keep both in sync with config.js. */
   --game-half-height: 240px;
+  --game-half-width: 560px;
+
+  /* The wooden frame around the game (public/border.jpg, 1584x672).
+     --frame-scale is how big the frame draws relative to the image: 0.35 draws the
+     ~101px-wide wood edge at ~35px. Raise it for a chunkier frame, lower it for a
+     thinner one; everything below follows. */
+  --frame-scale: 0.45;
+  /* Visible frame thickness = the image's wood band up to and including its inner gold
+     line: 101px at the sides, 115px at the top, 94px at the bottom (image pixels). */
+  --frame-side: calc(101px * var(--frame-scale));
+  --frame-top: calc(115px * var(--frame-scale));
+  --frame-bottom: calc(94px * var(--frame-scale));
 }
 
-/* Background image (public/background.jpg) from the bottom edge of the game window up.
-   The canvas is vertically centered, so its bottom edge is at 50% + half its height;
-   below that line the solid color above shows. The image's bottom is anchored to the
-   game's bottom edge. It lives on its own layer because image-rendering is inherited:
-   pixelated scaling keeps pixel art crisp, but must not leak onto the memory photo. */
+/* The frame: a 9-slice of public/border.jpg drawn behind the game canvas.
+   Slices are cut 147 image px in from every edge, just past the gold corner flourishes,
+   so the corners (studs + flourishes) are never stretched; only the plain wood strips
+   between them stretch, along their grain. The part of each slice that lies inside the
+   gold line (147 minus the visible thickness) sits under the canvas, which covers it.
+   `fill` draws the image's dark center too, so the login and loading screens (where
+   there is no game yet) appear framed as well. */
 .app-container::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: calc(50% + var(--game-half-height));
   z-index: 0;
   pointer-events: none;
-  background-image: url('/background.jpg');
-  background-size: cover;
-  background-position: center bottom;
-  background-repeat: no-repeat;
-  image-rendering: pixelated;
+  left: calc(50% - var(--game-half-width) - var(--frame-side));
+  top: calc(50% - var(--game-half-height) - var(--frame-top));
+  width: calc(2 * var(--game-half-width) + 2 * var(--frame-side));
+  height: calc(2 * var(--game-half-height) + var(--frame-top) + var(--frame-bottom));
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: calc(147px * var(--frame-scale));
+  border-image: url('/border.jpg') 147 fill / calc(147px * var(--frame-scale)) / 0 stretch;
 }
 
 .app-container > div:first-child {
-  /* GameCanvas wrapper — base layer */
+  /* GameCanvas wrapper — base layer, drawn over the frame's inner overlap */
   position: relative;
   z-index: 0;
   width: 100%;

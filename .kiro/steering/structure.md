@@ -1,12 +1,11 @@
 # Structure
 
-The repo has three top-level code areas: the game client, the login function, and an asset-generation tool. The game is a static site; the only server-side piece is the small login function (spec: `.kiro/specs/museum-login`, in progress).
+The repo has three top-level code areas: the game client, the login function, and an asset-generation tool. The game is a static site; the only server-side piece is the small login function (spec: `.kiro/specs/museum-login`; built and tested locally, AWS deploy pending).
 
 ```text
 Memories_Museum/
 ├── Front-end/                 # React + Phaser game client (Vite)
 ├── Auth-function/             # Museum login (AWS Lambda, Node ESM): own package.json, tests, esbuild bundle
-├── Memories/                  # Private content (git-ignored): dialogue/*.md, photos, paintings — fetched by URL, served from S3
 ├── Memories/                  # Private content (git-ignored): dialogue/*.md, photos, paintings — fetched by URL, served from S3
 ├── Tile_Creator/              # Python tileset generator (Pillow)
 ├── docs/                      # Project docs
@@ -17,24 +16,38 @@ Memories_Museum/
 
 ```text
 Front-end/
-├── index.html
-├── package.json               # scripts: dev, build, preview, lint, test
-├── eslint.config.js
+├── index.html                 # favicon: public/pixel_icon.png
+├── package.json               # scripts: dev, dev:auth, build, preview, lint, test
+├── eslint.config.js           # browser globals for src/; Node globals for dev/ and the configs
+├── vite.config.js             # adds dev/authDemoPlugin.js only in --mode demo
+├── .env.production            # VITE_AUTH_ENABLED=true (no secrets: VITE_* is public)
+├── .env.demo                  # VITE_AUTH_ENABLED=true for npm run dev:auth
+├── dev/
+│   ├── authDemoPlugin.js      # Demo_Mode: CloudFront + Lambda stand-in for the dev server (never bundled)
+│   └── __tests__/
 ├── public/
+│   ├── border.jpg             # wooden frame around the game window (9-slice, see App.css)
+│   ├── pixel_icon.png         # favicon
+│   ├── Memories -> ../../Memories   # git-ignored local symlink for dev
 │   └── assets/                # pixel assets only — tiny footprint
 │       ├── maps/              # Tiled-exported .json maps
 │       ├── tilesets/          # 16px tileset .png
 │       ├── sprites/           # character walk sheets (32×32 frames, 4×4): Lorenzo (player), Kelly (follower)
 │       └── photos/            # bundled placeholder painting texture (heavy media stays external)
 └── src/
-    ├── main.jsx               # React entry
+    ├── main.jsx               # React entry: renders <StartupGate><App /></StartupGate>
     ├── App.jsx                # top-level controller: owns overlay state, bridges EventBus
+    ├── App.css                # page layout + the wooden frame around the canvas (CSS variables)
     ├── components/
+    │   ├── StartupGate.jsx    # checking -> login | loading -> ready; renders App only when ready
+    │   ├── LoginScreen.jsx    # username/password, then 3 questions one at a time
+    │   ├── loginMessages.js   # every login message, in one place
     │   ├── GameCanvas.jsx     # mounts/destroys the Phaser.Game instance
-    │   ├── DialogueBox.jsx    # paged sentimental text overlay
+    │   ├── DialogueBox.jsx    # paged sentimental text overlay (fixed-size box)
     │   ├── ImageViewer.jsx    # high-res photo overlay
     │   └── __tests__/         # component + integration + property tests
     ├── data/
+    │   ├── authClient.js      # AUTH_ENABLED, session probe, start/finish login (body-hash header)
     │   ├── loadMemories.js    # startup fetch of Memories/dialogue/NN.md -> MEMORIES (N = first missing)
     │   ├── memories.js        # MEMORIES live manifest (empty until loaded) + setMemories() + future-memory text
     │   ├── paintings.js       # PAINTINGS derived from MEMORIES (syncPaintings) + placeholder key
@@ -63,6 +76,7 @@ Front-end/
 - **Phaser owns the game world** (`phaser/`). It never imports React.
 - **The only cross-boundary channel is `EventBus`.** Add new Phaser↔React interactions as named events, not direct references.
 - **`App.jsx` is the coordinator** — it subscribes to game events and drives overlay state.
+- **`StartupGate` owns what happens before the museum** (session probe, login, loading the letters) and mounts `App` only when ready. Don't move sign-in logic into `App.jsx`.
 - **Pixel assets go in `public/assets/`**; heavy media (photos/audio) does not — reference it by URL.
 
 ## Memory content (no backend)
@@ -84,25 +98,34 @@ Tile_Creator/
 
 Compiles a JSON palette + tile layout into a 16px-grid tileset sheet (default 8 columns, rows derived from tile count). Generated sheets feed `Front-end/public/assets/tilesets/`.
 
-## Auth-function/ (museum login, in progress)
+## Auth-function/ (museum login)
 
 ```text
 Auth-function/
 ├── package.json               # scripts: test, lint, build (Node ESM, own deps)
 ├── eslint.config.js           # Node globals
 ├── scripts/build.mjs          # esbuild: src/handler.js -> dist/handler.mjs (everything bundled)
-├── src/                       # handler + pure modules (normalize, hashing, checks, cookies, limiter, config)
+├── src/
+│   ├── handler.js             # Lambda entry: createHandler() + handler; the two /api/login routes
+│   ├── checks.js              # compare an attempt to the hashed Auth_Config (all comparisons run)
+│   ├── normalize.js           # answer / username normalization
+│   ├── hashing.js             # salted scrypt hash + constant-time verify
+│   ├── cookies.js             # the 3 CloudFront signed cookies (12-hour policy)
+│   ├── limiter.js             # in-memory per-IP attempt limiter
+│   └── config.js              # read + validate the Lambda environment variables
 ├── tools/make-config.mjs      # local setup tool: hashed AUTH_CONFIG / Demo_Config
 ├── demo/                      # git-ignored: Demo_Config for npm run dev:auth
-└── __tests__/
+├── dist/                      # git-ignored: build output
+└── __tests__/                 # property + example tests; helpers.js holds shared fixtures
 ```
 
-Never depends on `Front-end/`. Secrets reach it only as Lambda environment variables (spec Req 9). Run its commands from `Auth-function/`: `npm run test`, `npm run lint`, `npm run build`.
+Never depends on `Front-end/`. Secrets reach it only as Lambda environment variables (spec Req 9). Run its commands from `Auth-function/`: `npm run test`, `npm run lint`, `npm run build`. Everything takes its environment, clock, signer, limiter and verify function as options (`createHandler({...})`), so tests and Demo_Mode run the exact production code.
 
 ## Conventions
 
 - **Tests** live in `__tests__/` folders next to the code they cover, named `*.test.{js,jsx}`; property-based variants use `*.property.test.*`.
 - **File naming:** React components in PascalCase `.jsx` with a matching `.css`; Phaser modules in PascalCase `.js`; the shared `EventBus` and `config` are lowercase.
 - **Module style:** ES modules throughout the frontend. React = functional components + hooks. Phaser scenes/managers = ES classes with JSDoc.
-- **Keep the boundary clean:** game logic in `phaser/`, presentation in `components/`, content loading and manifests in `data/` (personal content itself only in `Memories/`), coordination in `App.jsx`, communication over `EventBus`.
+- **Keep the boundary clean:** game logic in `phaser/`, presentation in `components/`, content loading, manifests and the login client in `data/` (personal content itself only in `Memories/`), startup order in `StartupGate`, coordination in `App.jsx`, communication over `EventBus`, dev-server-only code in `dev/`.
+- **Component CSS keeps its own look:** a component's styling lives only in its matching `.css` (e.g. restyle the login in `LoginScreen.css` without touching `LoginScreen.jsx`). Shared colors are the frame-tile palette (see tech.md).
 - **Asset naming:** maps are `museum_start` / `museum_hallway`; tilesets are `museum_tileset` (firstgid 1) / `museum_decor` (firstgid 41). Keep each tileset `name` in the Tiled JSON matching the image key loaded in `GameScene.preload()`.
