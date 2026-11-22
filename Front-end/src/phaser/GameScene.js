@@ -16,6 +16,27 @@ import { MEMORIES } from '../data/memories.js';
 import { PAINTINGS, PAINTING_PLACEHOLDER_KEY } from '../data/paintings.js';
 import eventBus from './EventBus.js';
 
+/**
+ * Which Tiled map files to load, under the cache keys `museum_start` / `museum_hallway`.
+ * To try another map version, change these two paths.
+ */
+const MAP_FILES = Object.freeze({
+  start: 'assets/maps/museum_start_v2.json',
+  hallway: 'assets/maps/museum_hallway_v2.json'
+});
+
+/**
+ * Tilesets beyond the original two (`museum_tileset` firstgid 1, `museum_decor`
+ * firstgid 41). `name` must equal the tileset name inside the Tiled maps; it is also
+ * the texture key. Each is optional: a map that doesn't embed it just skips it.
+ */
+const EXTRA_TILESETS = Object.freeze([
+  {
+    name: 'museum_tileset_greige_16x16_2x5-v2',
+    file: 'assets/tilesets/museum_tileset_greige_16x16_2x5-v2.png'
+  }
+]);
+
 /** Width of a hallway segment in px: 58 tiles * 16px = 928. */
 const SEGMENT_WIDTH_PX = 58 * 16;
 
@@ -303,8 +324,10 @@ export default class GameScene extends Scene {
 
     // Load the real finite Tiled maps (Req 1.3). The start map is the fixed left end;
     // the hallway map is the segment template stitched to its right by SegmentManager.
-    this.load.tilemapTiledJSON('museum_start', 'assets/maps/museum_start.json');
-    this.load.tilemapTiledJSON('museum_hallway', 'assets/maps/museum_hallway.json');
+    // The cache keys stay `museum_start` / `museum_hallway` whichever file version is
+    // loaded, so swapping map versions is just these two paths.
+    this.load.tilemapTiledJSON('museum_start', MAP_FILES.start);
+    this.load.tilemapTiledJSON('museum_hallway', MAP_FILES.hallway);
 
     // Load both tilesets with KEYS EQUAL TO THE TILESET NAMES in the map JSON
     // (Req 1.4): `museum_tileset` (firstgid 1) and `museum_decor` (firstgid 41). Keeping
@@ -325,6 +348,13 @@ export default class GameScene extends Scene {
       frameWidth: 16,
       frameHeight: 16
     });
+
+    // Extra tilesets the v2 maps add after the two originals (e.g. the greige carpet,
+    // firstgid 65). Same rule: image key = Tiled tileset name. A map that doesn't use
+    // one simply never references it.
+    for (const extra of EXTRA_TILESETS) {
+      this.load.spritesheet(extra.name, extra.file, { frameWidth: 16, frameHeight: 16 });
+    }
 
     // Load player spritesheet (32×32 frames, 4 columns × 4 rows = 128×128)
     this.load.spritesheet('player', 'assets/sprites/Lorenzo_Sprite.png', {
@@ -414,6 +444,13 @@ export default class GameScene extends Scene {
     /** @type {Phaser.Tilemaps.Tileset} Decor tileset (firstgid 41). */
     this.tilesetDecor = tilesetDecor;
 
+    // Optional extra tilesets (see EXTRA_TILESETS). Only ones the map actually embeds
+    // are attached; a map without them (e.g. the original v1 maps) gets none.
+    /** @type {Phaser.Tilemaps.Tileset[]} */
+    this.tilesetExtras = EXTRA_TILESETS.filter((t) => this._mapHasTilesetNamed('museum_start', t.name))
+      .map((t) => this.map.addTilesetImage(t.name, t.name))
+      .filter(Boolean);
+
     // Raw Tiled JSON tilesets (shape: { firstgid, tiles: [{ id, objectgroup }] }) used
     // for collision. CollisionBuilder reads per-tile collision shapes from the `tiles`
     // array, which the parsed Phaser Tileset does not expose (it uses `tileData`). The
@@ -427,6 +464,10 @@ export default class GameScene extends Scene {
     this.rawTilesetDecor =
       this._getRawTileset('museum_start', 'museum_decor') ||
       this._getRawTileset('museum_hallway', 'museum_decor');
+    /** @type {Array<{firstgid:number, tiles:Array}>} */
+    this.rawTilesetExtras = EXTRA_TILESETS.map(
+      (t) => this._getRawTileset('museum_start', t.name) || this._getRawTileset('museum_hallway', t.name)
+    ).filter(Boolean);
 
     // Retained for the start-map floor / sortable-layer build helpers below.
     const tileset = tilesetMain;
@@ -444,13 +485,22 @@ export default class GameScene extends Scene {
     // Floor / back-wall layer — always below the player and all decor. Built at
     // a fixed low depth; never enters the sort group (Req 7.7). Drawn from the
     // main tileset (firstgid 1).
-    this.groundLayer = this._buildFloorLayer('Tile Layer 1', tileset);
+    // The floor can mix tilesets (e.g. the v2 carpet runner), so it gets every tileset
+    // in use; with only the main tileset it is passed exactly as before.
+    this.groundLayer = this._buildFloorLayer(
+      'Tile Layer 1',
+      this.tilesetExtras.length > 0 ? [tileset, tilesetDecor, ...this.tilesetExtras] : tileset
+    );
 
     // Decor tiles are converted into individually sortable sprites so the player
     // can walk in front of or behind each one based on world Y. The source layer
     // is created but hidden (it stays the tile-data source) so the map stays
     // authorable in Tiled. Decor draws from the decor tileset (firstgid 41).
-    this.propsLayer = this._buildSortableLayer('Tile Layer 2', tilesetDecor);
+    this.propsLayer = this._buildSortableLayer(
+      'Tile Layer 2',
+      tilesetDecor,
+      this.tilesetExtras.length > 0 ? [tileset, tilesetDecor, ...this.tilesetExtras] : tilesetDecor
+    );
     this.wallsLayer = null;
 
     // --- Collision via CollisionBuilder static bodies (Req 6.6) ---
@@ -821,6 +871,17 @@ export default class GameScene extends Scene {
    * @returns {{ firstgid: number, tiles: Array<{id:number, objectgroup?:object}> }|null}
    * @private
    */
+  /**
+   * True when the cached map's raw JSON embeds a tileset with this name.
+   * @param {string} mapKey
+   * @param {string} tilesetName
+   * @returns {boolean}
+   * @private
+   */
+  _mapHasTilesetNamed(mapKey, tilesetName) {
+    return this._getRawTileset(mapKey, tilesetName) !== null;
+  }
+
   _getRawTileset(mapKey, tilesetName) {
     const cache = this.cache && this.cache.tilemap;
     if (!cache || typeof cache.get !== 'function') return null;
@@ -858,7 +919,7 @@ export default class GameScene extends Scene {
     }
 
     let bodies = [];
-    for (const tileset of [this.rawTilesetMain, this.rawTilesetDecor]) {
+    for (const tileset of [this.rawTilesetMain, this.rawTilesetDecor, ...(this.rawTilesetExtras || [])]) {
       if (!tileset) continue;
       bodies = bodies.concat(
         this.collisionBuilder.buildForLayer(layer, tileset, worldOffsetX) || []
@@ -1023,7 +1084,6 @@ export default class GameScene extends Scene {
     const tileW = (this.map && this.map.tileWidth) || 16;
     const tileH = (this.map && this.map.tileHeight) || 16;
     const width = Number.isFinite(layer.width) ? layer.width : 0;
-    const firstgid = (tileset && tileset.firstgid) || 1;
 
     for (let i = 0; i < layer.data.length; i++) {
       const gid = layer.data[i];
@@ -1032,14 +1092,20 @@ export default class GameScene extends Scene {
       const { frame, flipH, flipV } = gidDecode(gid);
       if (frame <= 0) continue;
 
+      // Usually the main tileset, but the floor may also carry tiles from other
+      // tilesets (e.g. the v2 carpet runner), so key each tile by its owner.
+      const owning = this._tilesetForFrame(frame) || tileset;
+      const owningKey = owning && owning.image ? owning.image.key : imageKey;
+      const owningFirstgid = (owning && owning.firstgid) || 1;
+
       const col = i % width;
       const row = Math.floor(i / width);
       // Top-left origin at the tile's cell, matching how createLayer lays out tiles.
       const worldX = worldOffsetX + col * tileW;
       const worldY = row * tileH;
-      const localFrame = frame - firstgid;
+      const localFrame = frame - owningFirstgid;
 
-      const sprite = this.add.image(worldX, worldY, imageKey, localFrame);
+      const sprite = this.add.image(worldX, worldY, owningKey, localFrame);
       if (sprite && typeof sprite.setOrigin === 'function') sprite.setOrigin(0, 0);
       if (sprite && typeof sprite.setDepth === 'function') sprite.setDepth(this.FLOOR_DEPTH);
       if (sprite && typeof sprite.setFlipX === 'function') sprite.setFlipX(flipH);
@@ -1108,20 +1174,22 @@ export default class GameScene extends Scene {
   }
 
   /**
-   * Resolve which tileset owns a masked frame by firstgid (decor firstgid 41 wins for
-   * frames >= 41; otherwise the main tileset). Defensive against missing tilesets.
+   * Resolve which tileset owns a masked frame: the one with the highest firstgid that
+   * is <= frame (main = 1, decor = 41, extras such as the v2 carpet = 65). Defensive
+   * against missing tilesets; falls back to the main tileset.
    *
    * @param {number} frame - masked GID frame.
    * @returns {Phaser.Tilemaps.Tileset|null}
    * @private
    */
   _tilesetForFrame(frame) {
-    const decor = this.tilesetDecor;
-    const main = this.tilesetMain;
-    if (decor && Number.isFinite(decor.firstgid) && frame >= decor.firstgid) {
-      return decor;
+    const candidates = [this.tilesetMain, this.tilesetDecor, ...(this.tilesetExtras || [])];
+    let owner = null;
+    for (const ts of candidates) {
+      if (!ts || !Number.isFinite(ts.firstgid) || ts.firstgid > frame) continue;
+      if (!owner || ts.firstgid > owner.firstgid) owner = ts;
     }
-    return main || decor || null;
+    return owner || this.tilesetMain || this.tilesetDecor || null;
   }
 
   /**
@@ -1454,20 +1522,23 @@ export default class GameScene extends Scene {
     const floorFrame = bottomLeftGid & 0x1fffffff;
     if (floorFrame <= 0) return null;
 
-    // Walk upward while each row is entirely the floor frame; the first row that is
-    // NOT all-floor marks the wall, so the floor's top row is the one just below it.
-    let floorTopRow = height - 1;
-    for (let row = height - 1; row >= 0; row--) {
-      let allFloor = true;
+    // Scan DOWN from the top for the first row made entirely of the floor frame: that
+    // row is where the wall ends, and everything from it to the bottom is walkable.
+    // Scanning from the top (rather than up from the bottom) lets the floor carry rugs
+    // or carpet runners below that row without shrinking the walkable band.
+    const isAllFloor = (row) => {
       for (let col = 0; col < width; col++) {
         const gid = layer.data[row * width + col] ?? 0;
-        if ((gid & 0x1fffffff) !== floorFrame) {
-          allFloor = false;
-          break;
-        }
+        if ((gid & 0x1fffffff) !== floorFrame) return false;
       }
-      if (!allFloor) break;
-      floorTopRow = row;
+      return true;
+    };
+    let floorTopRow = height - 1;
+    for (let row = 0; row < height; row++) {
+      if (isAllFloor(row)) {
+        floorTopRow = row;
+        break;
+      }
     }
 
     return {
@@ -1505,13 +1576,14 @@ export default class GameScene extends Scene {
    * @param {Phaser.Tilemaps.Tileset} tileset - The tileset the layer draws from
    * @returns {Phaser.Tilemaps.TilemapLayer|null} The (hidden) source layer
    */
-  _buildSortableLayer(layerName, tileset) {
+  _buildSortableLayer(layerName, tileset, layerTilesets = tileset) {
     if (!this.map || typeof this.map.getLayer !== 'function') return null;
 
     // Skip cleanly if the layer doesn't exist in this map
     if (!this.map.getLayer(layerName)) return null;
 
-    const layer = this.map.createLayer(layerName, tileset);
+    // The hidden source layer is given every tileset its tiles may come from.
+    const layer = this.map.createLayer(layerName, layerTilesets);
     if (!layer) return null;
 
     // The source layer is data only — the sortable sprites carry the visuals.
@@ -1529,9 +1601,6 @@ export default class GameScene extends Scene {
     if (typeof layer.forEachTile === 'function') {
       const tileW = this.map.tileWidth || 16;
       const tileH = this.map.tileHeight || 16;
-
-      // firstgid maps a (masked) Tiled GID to a 0-based frame in the tileset image.
-      const firstgid = (tileset && tileset.firstgid) || 1;
 
       layer.forEachTile((tile) => {
         if (!tile) return;
@@ -1557,10 +1626,17 @@ export default class GameScene extends Scene {
         const worldX = tile.pixelX + tileW / 2;
         const worldY = tile.pixelY + tileH;
 
+        // A decor layer can mix tilesets (main-tileset benches/stanchions, the v2
+        // carpet), so key each tile by the tileset owning its GID. Without the scene's
+        // tilesets (e.g. in isolation), fall back to the tileset passed in.
+        const owning = this._tilesetForFrame(frame) || tileset;
+        const owningKey = owning && owning.image ? owning.image.key : imageKey;
+        const firstgid = (owning && owning.firstgid) || 1;
+
         // Convert the masked GID to a 0-based local frame within the tileset image.
         const localFrame = frame - firstgid;
 
-        const sprite = this.add.image(worldX, worldY, imageKey, localFrame);
+        const sprite = this.add.image(worldX, worldY, owningKey, localFrame);
         sprite.setOrigin(0.5, 1);
 
         // Apply orientation discovered in the GID (Req 7.2). setFlipX/setFlipY

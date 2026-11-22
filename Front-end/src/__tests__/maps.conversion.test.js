@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -32,7 +32,9 @@ const EXPECTED_COLLISION_IDS = {
   museum_decor: [7, 13]
 };
 
-const MAP_NAMES = ['museum_start', 'museum_hallway'];
+/** The map files GameScene loads (under the cache keys museum_start / museum_hallway). */
+const MAP_NAMES = ['museum_start_v2', 'museum_hallway_v2'];
+const TILESETS_DIR = resolve(__dirname, '../../public/assets/tilesets');
 
 /** @param {object} map @param {string} name */
 function findLayer(map, name) {
@@ -93,6 +95,23 @@ describe('maps conversion — finite Tiled JSON schema', () => {
       expect(decor.firstgid).toBe(41);
     });
 
+    it('uses only tile ids that an embedded tileset covers, and every tileset image ships', () => {
+      const ranges = map.tilesets.map((t) => ({ name: t.name, from: t.firstgid, to: t.firstgid + t.tilecount - 1 }));
+      for (const layer of map.layers.filter((l) => l.type === 'tilelayer')) {
+        for (const gid of layer.data) {
+          const id = gid & 0x1fffffff;
+          if (id === 0) continue;
+          expect(ranges.some((r) => id >= r.from && id <= r.to), `id ${id} in ${layer.name}`).toBe(true);
+        }
+      }
+      for (const t of map.tilesets) {
+        // GameScene loads each tileset from public/assets/tilesets/<name>.png.
+        expect(existsSync(resolve(TILESETS_DIR, `${t.name}.png`)), `${t.name}.png`).toBe(true);
+        expect(t.tilewidth).toBe(16);
+        expect(t.tileheight).toBe(16);
+      }
+    });
+
     it.each(Object.entries(EXPECTED_COLLISION_IDS))(
       'embeds collision objectgroup data for %s known local ids',
       (tilesetName, expectedIds) => {
@@ -115,8 +134,8 @@ describe('maps conversion — finite Tiled JSON schema', () => {
     );
   });
 
-  describe('museum_hallway Object Layer 1 (wall-paintings)', () => {
-    const hallway = loadMap('museum_hallway');
+  describe.each(['museum_hallway_v2'])('%s Object Layer 1 (wall-paintings)', (hallwayName) => {
+    const hallway = loadMap(hallwayName);
     const objectLayer = findLayer(hallway, 'Object Layer 1');
 
     /** @param {string} type */
@@ -155,8 +174,8 @@ describe('maps conversion — finite Tiled JSON schema', () => {
     });
   });
 
-  describe('museum_start Object Layer 1', () => {
-    const start = loadMap('museum_start');
+  describe.each(['museum_start_v2'])('%s Object Layer 1', (startName) => {
+    const start = loadMap(startName);
     const objectLayer = findLayer(start, 'Object Layer 1');
 
     it('has no objects', () => {

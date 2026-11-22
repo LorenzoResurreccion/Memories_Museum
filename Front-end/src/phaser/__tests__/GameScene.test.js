@@ -198,14 +198,15 @@ describe('GameScene', () => {
       // Should register loaderror handler
       expect(onMock).toHaveBeenCalledWith('loaderror', expect.any(Function));
 
-      // Should load BOTH finite Tiled maps (Req 1.3)
+      // Should load BOTH finite Tiled maps (Req 1.3), currently the v2 files, under the
+      // unchanged cache keys.
       expect(tilemapTiledJSONMock).toHaveBeenCalledWith(
         'museum_start',
-        'assets/maps/museum_start.json'
+        'assets/maps/museum_start_v2.json'
       );
       expect(tilemapTiledJSONMock).toHaveBeenCalledWith(
         'museum_hallway',
-        'assets/maps/museum_hallway.json'
+        'assets/maps/museum_hallway_v2.json'
       );
 
       // Should load BOTH tilesets as 16×16 spritesheets, keyed by the tileset names

@@ -80,8 +80,8 @@ function benchCells(map) {
   return cells;
 }
 
-const start = loadMap('museum_start');
-const hallway = loadMap('museum_hallway');
+const start = loadMap('museum_start_v2');
+const hallway = loadMap('museum_hallway_v2');
 
 describe('shipped maps: bench collision shapes', () => {
   it('hallway contains bench tiles', () => {
