@@ -359,7 +359,10 @@ AWS services used: **S3**, **CloudFront**, **Lambda**, and **CloudWatch Logs** (
    - Origin A: S3 with OAC. Bucket policy allows the distribution `s3:GetObject` and `s3:ListBucket`.
    - Origin B: the Lambda function URL with an OAC of origin type Lambda, HTTPS only. Add the two `lambda add-permission` grants for `cloudfront.amazonaws.com` scoped to the distribution ARN.
    - Behavior `/Memories/*` → origin A, GET/HEAD only, restrict viewer access with the trusted key group, managed `CachingOptimized` policy.
-   - Behavior `/api/*` → origin B, all methods, `CachingDisabled`, an origin request policy that forwards `CloudFront-Viewer-Address`, the query string, and all headers except `Host`.
+   - Behavior `/api/*` → origin B, all methods, `CachingDisabled`, and a custom origin request policy with exactly these settings:
+     - **Cookies: `all`.** Required. CloudFront passes an origin's `Set-Cookie` to the browser only when the behavior forwards cookies; with `none` it silently strips the three signed cookies. Sign-in then looks successful (204), but every `/Memories/*` request returns 403 and the museum shows only "future memory" placeholders.
+     - **Headers: a whitelist** of `CloudFront-Viewer-Address`, `Content-Type`, `Accept`, `Origin`. Never `Host` (the function URL rejects a foreign host). Don't use "all viewer headers except": that option can't add CloudFront-generated headers such as `CloudFront-Viewer-Address`, and without it the limiter counts CloudFront's edge IP instead of the visitor's. Don't list `x-amz-content-sha256`: CloudFront rejects it in a whitelist, and the OAC passes it through anyway.
+     - **Query strings: `all`.**
    - Default behavior → origin A, unrestricted.
    - **No custom error responses** for 403 or 404.
 6. **Secrets:** run `node Auth-function/tools/make-config.mjs --key <private key .pem>` and paste the printed `AUTH_CONFIG` and `CLOUDFRONT_PRIVATE_KEY_B64` values into the Lambda's environment variables.
@@ -368,7 +371,7 @@ AWS services used: **S3**, **CloudFront**, **Lambda**, and **CloudWatch Logs** (
    - direct S3 URL → 403
    - `/Memories/dialogue/00.md` without cookie → 403
    - wrong password → 401, 6th wrong try → 429
-   - full sign-in → 204 with 3 cookies; letters, paintings and photos load
+   - full sign-in → 204 with 3 cookies; letters, paintings and photos load (if only placeholders show, check DevTools → Application → Cookies for the three `CloudFront-*` cookies: missing means the `/api/*` policy isn't forwarding cookies)
    - missing letter while signed in → 404
    - closing the browser → login shown again
 

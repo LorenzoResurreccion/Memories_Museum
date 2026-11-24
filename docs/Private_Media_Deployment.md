@@ -135,8 +135,12 @@ The authoritative step-by-step is "CloudFront and AWS setup" in
    `CLOUDFRONT_PRIVATE_KEY_B64`; add `CLOUDFRONT_KEY_PAIR_ID` and `APP_DOMAIN`.
 5. **CloudFront:** S3 origin with OAC (`s3:GetObject` + `s3:ListBucket`); Lambda function URL
    origin with OAC; behaviors `/Memories/*` (GET/HEAD, trusted key group), `/api/*` (all methods,
-   caching disabled, forward `CloudFront-Viewer-Address`), default (unrestricted). **No custom
-   error responses.**
+   caching disabled), default (unrestricted). **No custom error responses.**
+   The `/api/*` origin request policy must **forward all cookies**, or CloudFront strips the
+   sign-in's `Set-Cookie` headers: login appears to succeed but every memory shows as a
+   placeholder. It also whitelists the headers `CloudFront-Viewer-Address`, `Content-Type`,
+   `Accept` and `Origin` (never `Host`) and forwards all query strings. See step 5 of the
+   design's setup section for why each setting matters.
 6. **Pipeline (optional):** a GitHub Actions workflow can upload the built app to S3 and push the
    function code with `update-function-code` (OIDC sign-in to AWS). It never touches the
    environment variables, and can't upload `Memories/`, which isn't in git.
